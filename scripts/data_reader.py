@@ -53,7 +53,7 @@ class PhotoTaker:
         cv2.imwrite(img_title, self.depth_image)
 
 
-class BaseDataReader():
+class BaseDataReader:
     def capture_velocity(self):
         velocity_topic = "/mobile_base/commands/velocity"
         rospy.Subscriber(velocity_topic, geometry_msgs.msg.Twist, self.velocity_callback)
@@ -87,7 +87,7 @@ class BaseDataReader():
 
 
 if __name__ == '__main__':
-    """
+    '''
     rospy.init_node('data_reader', anonymous=False)
 
     camera = PhotoTaker()
@@ -105,4 +105,4 @@ if __name__ == '__main__':
     datareader = BaseDataReader()
     datareader.capture_velocity()
     rospy.sleep(1)
-    """
+    '''

@@ -1,14 +1,21 @@
-import rospy
-from scripts.movement import Navigator
+from random import randint
+from environment import Environment
 
 
 if __name__ == '__main__':
-	try:
-		navigator = Navigator()
+    env = Environment(base_name="mobile_base", destination_name="unit_sphere_3")
+    env.reset_base()
 
-		navigator.move(True, 45)    # Move forward with 45 degrees
-		navigator.move(False, 45)   # Move backwards with 45 degrees
-		navigator.move(False, -45)  # Move backwards with -45 (315) degrees
-	except:
-		rospy.loginfo("Terminated!")
+    destination_point = env.destination
+    while destination_point == env.destination:
+        random_action = randint(0, 2)
+        env.act(random_action)
+
+        print("---")
+        print("Random Action", random_action)
+        print("Position", env.position)
+        print("Destination", env.destination)
+        print("---")
+
+    print("Destination reached!")
 

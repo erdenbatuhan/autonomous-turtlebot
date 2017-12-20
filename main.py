@@ -1,27 +1,21 @@
-import rospy
-from scripts.environment import Environment
+from random import randint
+from environment import Environment
 
 
 if __name__ == '__main__':
-    try:
-        env = Environment()
+    env = Environment(base_name="mobile_base", destination_name="unit_sphere_3")
+    env.reset_base()
 
-        env.act(0)
-        env.act(0)
+    destination_point = env.destination
+    while destination_point == env.destination:
+        random_action = randint(0, 2)
+        env.act(random_action)
 
-        env.act(1)
-        env.act(1)
+        print("---")
+        print("Random Action", random_action)
+        print("Position", env.position)
+        print("Destination", env.destination)
+        print("---")
 
-        env.act(0)
-        env.act(0)
-
-        env.act(2)
-        env.act(2)
-
-        env.act(0)
-        env.act(0)
-        env.act(0)
-        env.act(0)
-    except:
-        rospy.loginfo("Terminated!")
+    print("Destination reached!")
 

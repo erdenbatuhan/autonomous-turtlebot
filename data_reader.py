@@ -3,7 +3,7 @@ import rospy
 import cv2
 import numpy as np
 import kobuki_msgs.msg
-import BumperEvent
+# import BumperEvent
 import geometry_msgs
 import sensor_msgs
 import std_msgs
@@ -59,10 +59,12 @@ class BaseDataReader:
         rospy.Subscriber(velocity_topic, geometry_msgs.msg.Twist, self.velocity_callback)
         rospy.sleep(1)
 
+    '''
     def capture_bumper(self):
         bumper_topic = "/mobile_base/events/bumper"
         rospy.Subscriber(bumper_topic, kobuki_msgs.msg.BumperEvent, self.bumper_callback)
         rospy.sleep(1)
+    '''
 
     def velocity_callback(self, data):
         """
@@ -70,6 +72,7 @@ class BaseDataReader:
         """
         self.velocity = data
 
+    '''
     def bumper_callback(self, data):
         """
         Bumper state -1 by default
@@ -84,10 +87,10 @@ class BaseDataReader:
             self.bumper_state = 2
         else:
             self.bumper_state = -1
+    '''
 
 
 if __name__ == '__main__':
-    '''
     rospy.init_node('data_reader', anonymous=False)
 
     camera = PhotoTaker()
@@ -105,4 +108,3 @@ if __name__ == '__main__':
     datareader = BaseDataReader()
     datareader.capture_velocity()
     rospy.sleep(1)
-    '''

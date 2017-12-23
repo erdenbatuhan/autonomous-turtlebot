@@ -110,7 +110,9 @@ class Environment:
         depth = self.compress(self.depth_image_raw)
         time_passed = time.time() - self.initial_time
 
-        return distance, depth, time_passed
+        state = [distance, depth, time_passed]
+
+        return state
 
     def get_reward(self, state):
         # Importance hierarchy: Depth > Distance > Time Passed

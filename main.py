@@ -13,8 +13,8 @@ if __name__ == '__main__':
     env.act(0)
 
     while destination_point == env.destination:
-        depth = env.depth_image_raw
-        con.send_data(depth)
+        state = env.get_state()
+        con.send_data(state)
         action = server.receive_data()
         env.act(int(action[0]))
         print("-------------------------------------------")

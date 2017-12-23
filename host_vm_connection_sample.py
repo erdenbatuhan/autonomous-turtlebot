@@ -16,7 +16,14 @@ connector = HostMachine.HostConnector()
 server.listen()
 
 while True:
-    depth = server.receive_data()
+    state = server.receive_data()  # [Distance, Depth, TimePassed]
+    print("Distance")
+    print(state[0])
+    print("Depth")
+    print(state[1])
+    print("Time")
+    print(state[2])
+    depth = state[1]
     action = str(decide_action_based_on_depth(depth))
     print("------------------\n")
     print(action)

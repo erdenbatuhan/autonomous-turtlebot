@@ -77,6 +77,8 @@ class Environment:
                 y = j * 80
                 temp_array = image[x:x + 60, y:y + 80]
                 depth_avg[i][j] = np.average(temp_array)
+                if np.isnan(depth_avg[i][j]):
+                    depth_avg[i][j] = 10.0
 
         return depth_avg
 

@@ -57,8 +57,8 @@ class Environment:
         return -1
 
     @staticmethod
-    def __compress(image):
-        depth_avg = np.zeros((8, 8))
+    def __minimize(image):
+        mini_depth = np.zeros((8, 8))
 
         for i in range(0, 8):
             for j in range(0, 8):
@@ -66,12 +66,12 @@ class Environment:
                 y = j * 80
 
                 temp_array = image[x:x + 60, y:y + 80]
-                depth_avg[i][j] = np.average(temp_array)
+                mini_depth[i][j] = np.average(temp_array)
 
-                if np.isnan(depth_avg[i][j]):
-                    depth_avg[i][j] = 10.
+                if np.isnan(mini_depth[i][j]):
+                    mini_depth[i][j] = 10.
 
-        return depth_avg
+        return mini_depth
 
     def __shutdown(self):
         rospy.loginfo("TurtleBot is stopping..")
@@ -129,7 +129,7 @@ class Environment:
         # S(t) = (distance(t), depth(t), time_passed(t))
 
         distance = self.__get_distance_between(self.__position, self.__destination)
-        depth = self.__compress(self.__depth_image_raw)
+        depth = self.__minimize(self.__depth_image_raw)
         time_passed = time.time() - self.__initial_time
 
         return distance, depth, time_passed
@@ -143,7 +143,11 @@ class Environment:
             return -100
 
         # Importance hierarchy: Depth > Distance > Time Passed
-        return state[0] * 2 + state[1] * 3 - state[2]
+        # c: The coefficient array for each state element
+        c = [2, 3, -1]
+        reward = sum([state[i] * c[i] for i in range(len(state))])
+
+        return reward  # 2D Reward Function, 8x8 Matrix.
 
     def act(self, action, v1=.3, v2=.05, duration=10):
         vel_cmd = Twist()

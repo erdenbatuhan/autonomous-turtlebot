@@ -1,4 +1,5 @@
 from random import randint
+from matplotlib import pyplot as plt
 from environment import Environment
 import vm
 
@@ -6,6 +7,13 @@ import vm
 BASE_NAME = "mobile_base"
 DESTINATION_NAME = "unit_sphere_3"
 EPOCH = 100000
+
+
+def plot_learning_curve(episodes):
+    plt.plot(episodes)
+    plt.xlabel("Episode")
+    plt.ylabel("Length of episode")
+    plt.show()
 
 
 def main():

@@ -65,7 +65,6 @@ class Environment:
             print(e)
 
         self.depth_image_raw = self.process_depth_image(np.array(self.depth_image_raw, dtype=np.float32))
-        # cv2.normalize(image, image, 0, 1, cv2.NORM_MINMAX)  # Normalize the depth array to 0-1
 
     @staticmethod
     def process_depth_image(image):

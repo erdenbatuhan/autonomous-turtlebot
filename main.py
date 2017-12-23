@@ -1,5 +1,16 @@
+import numpy as np
 from random import randint
 from environment import Environment
+
+
+def get_action_using(depth):
+    decision = np.zeros(3)
+
+    decision[0] = np.average(depth[:, 0:2])  # Left
+    decision[1] = np.average(depth[:, 2:6])  # Middle
+    decision[2] = np.average(depth[:, 6:8])  # Right
+
+    return np.argmax(decision)
 
 
 if __name__ == '__main__':
@@ -23,8 +34,9 @@ if __name__ == '__main__':
     random_action = randint(0, 2)
     env.act(0)
     while destination_point == env.destination:
-        depth = env.depth_image_raw
-        action = env.decide_action_based_on_depth(depth)
+        state = env.get_state()
+        action = get_action_using(state[1])
+        
         env.act(action)
         print(action)
         print("-------------------------------------------")

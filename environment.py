@@ -64,8 +64,30 @@ class Environment:
         except CvBridgeError as e:
             print(e)
 
-        self.depth_image_raw = np.array(self.depth_image_raw, dtype=np.float32)
+        self.depth_image_raw = self.process_depth_image(np.array(self.depth_image_raw, dtype=np.float32))
         # cv2.normalize(image, image, 0, 1, cv2.NORM_MINMAX)  # Normalize the depth array to 0-1
+
+    @staticmethod
+    def process_depth_image(image):
+        depth_avg = np.zeros((8, 8))
+
+        for i in range(0, 8):
+            for j in range(0, 8):
+                x = i * 60
+                y = j * 80
+                temp_array = image[x:x + 60, y:y + 80]
+                depth_avg[i][j] = np.average(temp_array)
+
+        return depth_avg
+
+    @staticmethod
+    def decide_action_based_on_depth(depth):
+        decision = np.zeros(3)
+        decision[0] = np.average(depth[:, 2:6])  # Middle
+        decision[1] = np.average(depth[:, 0:2])  # Left
+        decision[2] = np.average(depth[:, 6:8])  # Right
+
+        return np.argmax(decision)
 
     def subscribe_model_states(self):
         rospy.Subscriber("/gazebo/model_states", ModelStates, self.model_states_callback)

@@ -4,9 +4,12 @@ from environment import Environment
 # TODO - Deep RL Algorithm
 class Agent:
 
-    def __init__(self, env):
-        self.env = env
+    __LEARNING_RATE = .01
+    __DISCOUNT_FACTOR = .99
 
-    def learn(self):
+    def __init__(self, env):
+        self.__env = env
+
+    def __learn(self):
         pass
 

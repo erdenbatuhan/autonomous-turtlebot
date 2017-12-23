@@ -12,14 +12,17 @@ from cv_bridge import CvBridge, CvBridgeError
 
 
 class Environment:
+
+    __FREQUENCY = 10
+    __TIME_LIMIT = 10 ** 5
     
-    def __init__(self, base_name, destination_name, frequency=10):
+    def __init__(self, base_name, destination_name):
         rospy.init_node("Environment", anonymous=False)
         rospy.loginfo("CTRL + C to terminate..")   
         rospy.on_shutdown(self.__shutdown)
 
         self.__vel_pub = rospy.Publisher("/mobile_base/commands/velocity", Twist, queue_size=5)
-        self.__rate = rospy.Rate(frequency)
+        self.__rate = rospy.Rate(self.__FREQUENCY)
         self.__bridge = CvBridge()
         self.__initial_time = time.time()
         self.__base_name = base_name
@@ -27,8 +30,8 @@ class Environment:
         self.__position = {"x": 0., "y": 0.}
         self.__destination = {"x": -999., "y": -999.}
         self.__depth_image_raw = None
-        self.__crashed = False
         self.__terminal = False
+        self.__crashed = False
 
         self.__subscribe_model_states()
         self.__subscribe_depth_image_raw()
@@ -132,17 +135,14 @@ class Environment:
         return distance, depth, time_passed
 
     def get_reward(self, state):
-        # Importance hierarchy: Depth > Distance > Time Passed
-
-        if self.__terminal:  # Destination reached!
-            return 1000
-        elif self.__crashed:  # Crashed!
+        if self.__terminal:
+            self.__shutdown()
+            return 200
+        elif self.__crashed or state[2] > self.__TIME_LIMIT:
             self.reset_base()
-            return -1500
-        # elif state[2] > self.time_limit:  # Time limit reached!
-        #   self.reset_base()
-        #   return -1000
+            return -100
 
+        # Importance hierarchy: Depth > Distance > Time Passed
         return state[0] * 2 + state[1] * 3 - state[2]
 
     def act(self, action, v1=.3, v2=.05, duration=10):

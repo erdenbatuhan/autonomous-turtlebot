@@ -5,9 +5,9 @@ import host
 def get_action_using(depth):
     decision = np.zeros(3)
 
-    decision[0] = np.average(depth[:, 2:6])  # Middle
-    decision[1] = np.average(depth[:, 0:2])  # Left
-    decision[2] = np.average(depth[:, 6:8])  # Right
+    decision[0] = np.average(depth[:, 0:2])  # LEFT
+    decision[1] = np.average(depth[:, 2:6])  # FORWARD
+    decision[2] = np.average(depth[:, 6:8])  # RIGHT
 
     return np.argmax(decision)
 

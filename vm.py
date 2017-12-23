@@ -1,11 +1,20 @@
+try:
+    from ConfigParser import ConfigParser  # Python 2
+except ImportError:
+    from configparser import ConfigParser  # Python 3
+
 import socket
 import pickle
 
 
 class VMConnector:
+
     def __init__(self):
-        self.target = "192.168.1.29"  # IP Address of host pc
-        self.target_port = 50000
+        cp = ConfigParser()
+        cp.read("./config.ini")
+
+        self.target = cp.get("Network", "host.addr")  # IP Address of host pc
+        self.target_port = int(cp.get("Network", "port.header"))
         self.target_socket = None
 
     def connect_to_target(self):
@@ -19,9 +28,13 @@ class VMConnector:
 
 
 class VMServer:
+
     def __init__(self):
-        self.host = "192.168.112.129"  # IP Address of VM
-        self.listen_port = 50001
+        cp = ConfigParser()
+        cp.read("./config.ini")
+
+        self.host = cp.get("Network", "vm.addr")  # IP Address of VM
+        self.listen_port = int(cp.get("Network", "port.header")) + 1
         self.listen_socket = None
 
     def listen(self):
@@ -31,12 +44,15 @@ class VMServer:
 
     def receive_data(self):
         self.conn, self.addr = self.listen_socket.accept()
+
         stream = []
         while 1:
             data = self.conn.recv(4096)
             if not data:
                 break
+
             stream.append(data)
 
         print(pickle.loads(b"".join(stream), encoding='latin1'))
         return pickle.loads(b"".join(stream), encoding='latin1')
+

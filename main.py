@@ -1,34 +1,39 @@
 from random import randint
 from environment import Environment
-import VM
+import vm
+
+
+BASE_NAME = "mobile_base"
+DESTINATION_NAME = "unit_sphere_3"
+EPOCH = 1000
+
+
+def main():
+    env = Environment(base_name=BASE_NAME, destination_name=DESTINATION_NAME)
+    env.reset_base()
+
+    conn = vm.VMConnector()
+    server = vm.VMServer()
+    server.listen()
+
+    state = env.get_state()
+    conn.send_data(state)
+
+    # Act randomly
+    for _ in range(EPOCH):
+        random_action = randint(0, 2)
+        next_state, reward, terminal = env.act(random_action)
+
+        conn.send_data(next_state)
+        action = server.receive_data()
+
+        env.act(int(action[0]))
+
+        if terminal:
+            print("Destination Reached!")
+            break
+
 
 if __name__ == '__main__':
-    env = Environment(base_name="mobile_base", destination_name="unit_sphere_3")
-    env.reset_base()
-    con = VM.VMConnector()
-    server = VM.VMServer()
-    server.listen()
-    destination_point = env.destination
-    random_action = randint(0, 2)
-    env.act(0)
+    main()
 
-    while destination_point == env.destination:
-        state = env.get_state()
-        con.send_data(state)
-        action = server.receive_data()
-        env.act(int(action[0]))
-        print("-------------------------------------------")
-    """
-    
-    #  Act randomly
-    while destination_point == env.destination:
-        random_action = randint(0, 2)
-        env.act(random_action)
-        print(env.depth_image_raw)
-        print("---")
-        print("Random Action", random_action)
-        print("Position", env.position)
-        print("Destination", env.destination)
-        print("---")
-    """
-    print("Destination Reached !")

@@ -1,10 +1,20 @@
+try:
+    from ConfigParser import ConfigParser  # Python 2
+except ImportError:
+    from configparser import ConfigParser  # Python 3
+
 import socket
 import pickle
 
+
 class HostConnector:
+
     def __init__(self):
-        self.target = "192.168.112.129"  # IP Address of VM
-        self.target_port = 50001
+        cp = ConfigParser()
+        cp.read("./config.ini")
+
+        self.target = cp.get("Network", "vm.addr")  # cp.get("Network", "vm.addr")IP Address of VM
+        self.target_port = int(cp.get("Network", "port.header")) + 1
         self.target_socket = None
         self.last_sent = None
 
@@ -20,9 +30,13 @@ class HostConnector:
 
 
 class HostServer:
+
     def __init__(self):
-        self.host = "192.168.1.29"  # IP Address of host PC
-        self.listen_port = 50002
+        cp = ConfigParser()
+        cp.read("./config.ini")
+
+        self.host = cp.get("Network", "host.addr")  # IP Address of host PC
+        self.listen_port = int(cp.get("Network", "port.header")) + 2
         self.listen_socket = None
         self.last_received = None
 
@@ -33,11 +47,14 @@ class HostServer:
 
     def receive_data(self):
         self.conn, self.addr = self.listen_socket.accept()
+
         stream = []
         while 1:
             data = self.conn.recv(4096)
             if not data:
                 break
+
             stream.append(data)
 
         return pickle.loads(b"".join(stream), encoding='latin1')
+

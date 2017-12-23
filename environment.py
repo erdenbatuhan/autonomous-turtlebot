@@ -16,41 +16,41 @@ class Environment:
         rospy.init_node("Environment", anonymous=False)
 
         rospy.loginfo("CTRL + C to terminate..")   
-        rospy.on_shutdown(self.shutdown)
+        rospy.on_shutdown(self.__shutdown)
 
-        self.base_name = base_name
-        self.destination_name = destination_name
+        self.__base_name = base_name
+        self.__destination_name = destination_name
 
-        self.vel_pub = rospy.Publisher("/mobile_base/commands/velocity", Twist, queue_size=5)
-        self.rate = rospy.Rate(frequency)
+        self.__vel_pub = rospy.Publisher("/mobile_base/commands/velocity", Twist, queue_size=5)
+        self.__rate = rospy.Rate(frequency)
 
-        self.position = {"x": 0., "y": 0.}
-        self.destination = {"x": -999., "y": -999.}
+        self.__position = {"x": 0., "y": 0.}
+        self.__destination = {"x": -999., "y": -999.}
 
-        self.bridge = CvBridge()
-        self.depth_image_raw = None
+        self.__bridge = CvBridge()
+        self.__depth_image_raw = None
 
-        self.subscribe_model_states()
-        self.subscribe_depth_image_raw()
+        self.__subscribe_model_states()
+        self.__subscribe_depth_image_raw()
 
-        self.initial_time = time.time()
+        self.__initial_time = time.time()
 
     @staticmethod
-    def get_distance_between(p1, p2):
+    def __get_distance_between(p1, p2):
         a, b = p2["x"] - p1["x"], p2["y"] - p1["y"]
         c = math.sqrt(a ** 2 + b ** 2)
 
         return c
 
     @staticmethod
-    def get_angle_between(p1, p2):
+    def __get_angle_between(p1, p2):
         y = p2["y"] - p1["y"]
         x = p2["x"] - p1["x"]
 
         return math.atan2(y, x)
 
     @staticmethod
-    def get_index_of(arr, item):
+    def __get_index_of(arr, item):
         for i in range(len(arr)):
             if arr[i] == item:
                 return i
@@ -58,7 +58,7 @@ class Environment:
         return -1
 
     @staticmethod
-    def compress(image):
+    def __compress(image):
         depth_avg = np.zeros((8, 8))
 
         for i in range(0, 8):
@@ -74,50 +74,55 @@ class Environment:
 
         return depth_avg
 
-    def model_states_callback(self, model_states):
-        base_ind = self.get_index_of(model_states.name, self.base_name)
-        destination_ind = self.get_index_of(model_states.name, self.destination_name)
+    def __shutdown(self):
+        rospy.loginfo("TurtleBot is stopping..")
+        self.__vel_pub.publish(Twist())
+
+        rospy.sleep(1)
+        rospy.loginfo("TurtleBot stopped!")
+
+    def __model_states_callback(self, model_states):
+        base_ind = self.__get_index_of(model_states.name, self.__base_name)
+        destination_ind = self.__get_index_of(model_states.name, self.__destination_name)
 
         position = model_states.pose[base_ind].position
         destination = model_states.pose[destination_ind].position
 
-        self.position["x"] = position.x
-        self.position["y"] = position.y
+        self.__position["x"] = position.x
+        self.__position["y"] = position.y
 
-        self.destination["x"] = destination.x
-        self.destination["y"] = destination.y
+        self.__destination["x"] = destination.x
+        self.__destination["y"] = destination.y
 
-    def depth_image_raw_callback(self, depth_image_raw):
+    def __depth_image_raw_callback(self, depth_image_raw):
         try:
-            self.depth_image_raw = self.bridge.imgmsg_to_cv2(depth_image_raw, "32FC1")
+            self.__depth_image_raw = self.__bridge.imgmsg_to_cv2(depth_image_raw, "32FC1")
         except CvBridgeError as e:
             print(e)
 
-        self.depth_image_raw = np.array(self.depth_image_raw, dtype=np.float32)
+        self.__depth_image_raw = np.array(self.__depth_image_raw, dtype=np.float32)
 
-    def subscribe_model_states(self):
-        rospy.Subscriber("/gazebo/model_states", ModelStates, self.model_states_callback)
+    def __subscribe_model_states(self):
+        rospy.Subscriber("/gazebo/model_states", ModelStates, self.__model_states_callback)
         # rospy.sleep(1)
 
-    def subscribe_depth_image_raw(self):
-        rospy.Subscriber("/camera/depth/image_raw", Image, self.depth_image_raw_callback)
+    def __subscribe_depth_image_raw(self):
+        rospy.Subscriber("/camera/depth/image_raw", Image, self.__depth_image_raw_callback)
         # rospy.sleep(1)
 
     def get_state(self):
         # S(t) = (distance(t), depth(t), time_passed(t))
 
-        distance = self.get_distance_between(self.position, self.destination)
-        depth = self.compress(self.depth_image_raw)
-        time_passed = time.time() - self.initial_time
+        distance = self.__get_distance_between(self.__position, self.__destination)
+        depth = self.__compress(self.__depth_image_raw)
+        time_passed = time.time() - self.__initial_time
 
-        state = [distance, depth, time_passed]
-
-        return state
+        return distance, depth, time_passed
 
     def get_reward(self, state):
         # Importance hierarchy: Depth > Distance > Time Passed
 
-        if self.get_distance_between(self.position, self.destination) < .1:  # Destination reached!
+        if self.__get_distance_between(self.__position, self.__destination) < .1:  # Destination reached!
             return 1000
         # elif self.crashed:
         #   return -1500
@@ -143,15 +148,20 @@ class Environment:
             if rospy.is_shutdown():
                 return
 
-            self.vel_pub.publish(vel_cmd)
-            self.rate.sleep()
+            self.__vel_pub.publish(vel_cmd)
+            self.__rate.sleep()
+
+        state = self.get_state()
+        reward = self.get_reward(state)
+
+        return state, reward, False
 
     def reset_base(self):
         rospy.wait_for_service("/gazebo/set_model_state")
         set_model_state = rospy.ServiceProxy("/gazebo/set_model_state", SetModelState)
 
         model_state = ModelState()
-        model_state.model_name = self.base_name
+        model_state.model_name = self.__base_name
 
         model_state.pose.position.x = 0.
         model_state.pose.position.y = 0.
@@ -168,12 +178,5 @@ class Environment:
         model_state.twist.angular.z = 0.
 
         set_model_state(model_state)
-        self.initial_time = time.time()
-
-    def shutdown(self):
-        rospy.loginfo("TurtleBot is stopping..")
-        self.vel_pub.publish(Twist())
-
-        rospy.sleep(1)
-        rospy.loginfo("TurtleBot stopped!")
+        self.__initial_time = time.time()
 

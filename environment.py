@@ -1,3 +1,4 @@
+import time
 import math
 import numpy as np
 import cv2
@@ -32,10 +33,21 @@ class Environment:
         self.subscribe_model_states()
         self.subscribe_depth_image_raw()
 
+        self.initial_time = time.time()
+
     @staticmethod
-    def get_angle_between_points(p1, p2):
-        # It returns the angle in radians between 2 points
-        return math.atan2(p2["y"] - p1["y"], p2["x"] - p1["x"])
+    def get_distance_between(p1, p2):
+        a, b = p2["x"] - p1["x"], p2["y"] - p1["y"]
+        c = math.sqrt(a ** 2 + b ** 2)
+
+        return c
+
+    @staticmethod
+    def get_angle_between(p1, p2):
+        y = p2["y"] - p1["y"]
+        x = p2["x"] - p1["x"]
+
+        return math.atan2(y, x)
 
     @staticmethod
     def get_index_of(arr, item):
@@ -44,6 +56,23 @@ class Environment:
                 return i
 
         return -1
+
+    @staticmethod
+    def compress(image):
+        depth_avg = np.zeros((8, 8))
+
+        for i in range(0, 8):
+            for j in range(0, 8):
+                x = i * 60
+                y = j * 80
+
+                temp_array = image[x:x + 60, y:y + 80]
+                depth_avg[i][j] = np.average(temp_array)
+
+                if np.isnan(depth_avg[i][j]):
+                    depth_avg[i][j] = 10.0
+
+        return depth_avg
 
     def model_states_callback(self, model_states):
         base_ind = self.get_index_of(model_states.name, self.base_name)
@@ -64,31 +93,7 @@ class Environment:
         except CvBridgeError as e:
             print(e)
 
-        self.depth_image_raw = self.process_depth_image(np.array(self.depth_image_raw, dtype=np.float32))
-
-    @staticmethod
-    def process_depth_image(image):
-        depth_avg = np.zeros((8, 8))
-
-        for i in range(0, 8):
-            for j in range(0, 8):
-                x = i * 60
-                y = j * 80
-                temp_array = image[x:x + 60, y:y + 80]
-                depth_avg[i][j] = np.average(temp_array)
-                if np.isnan(depth_avg[i][j]):
-                    depth_avg[i][j] = 10.0
-
-        return depth_avg
-
-    @staticmethod
-    def decide_action_based_on_depth(depth):
-        decision = np.zeros(3)
-        decision[0] = np.average(depth[:, 2:6])  # Middle
-        decision[1] = np.average(depth[:, 0:2])  # Left
-        decision[2] = np.average(depth[:, 6:8])  # Right
-
-        return np.argmax(decision)
+        self.depth_image_raw = np.array(self.depth_image_raw, dtype=np.float32)
 
     def subscribe_model_states(self):
         rospy.Subscriber("/gazebo/model_states", ModelStates, self.model_states_callback)
@@ -99,22 +104,35 @@ class Environment:
         # rospy.sleep(1)
 
     def get_state(self):
-        distance_vector = {"x": self.destination["x"] - self.position["x"],
-                           "y": self.destination["y"] - self.position["y"],
-                           "a": self.get_angle_between_points(self.position, self.destination)}
+        # S(t) = (distance(t), depth(t), time_passed(t))
 
-        # TODO: S(t) = (distance_vector(t), depth_image(t), time_passed(t))
-        return distance_vector, self.depth_image_raw, None
+        distance = self.get_distance_between(self.position, self.destination)
+        depth = self.compress(self.depth_image_raw)
+        time_passed = time.time() - self.initial_time
+
+        return distance, depth, time_passed
+
+    def get_reward(self, state):
+        # Importance hierarchy: Depth > Distance > Time Passed
+
+        if self.get_distance_between(self.position, self.destination) < .1:  # Destination reached!
+            return 1000
+        # elif self.crashed:
+        #   return -1500
+        # elif state[2] > self.time_limit:
+        #   return -1000
+
+        return state[0] * 2 + state[1] * 3 - state[2]
 
     def act(self, action, v1=.3, v2=.05, num_iterations=10):
         vel_cmd = Twist()
 
-        if action == 0:  # FORWARD
-            vel_cmd.linear.x = v1 - v2
-            vel_cmd.angular.z = 0.
-        elif action == 1:  # LEFT
+        if action == 0:  # LEFT
             vel_cmd.linear.x = v2
             vel_cmd.angular.z = v1
+        elif action == 1:  # FORWARD
+            vel_cmd.linear.x = v1 - v2
+            vel_cmd.angular.z = 0.
         elif action == 2:  # RIGHT
             vel_cmd.linear.x = v2
             vel_cmd.angular.z = -v1
@@ -148,6 +166,7 @@ class Environment:
         model_state.twist.angular.z = 0.
 
         set_model_state(model_state)
+        self.initial_time = time.time()
 
     def shutdown(self):
         rospy.loginfo("TurtleBot is stopping..")

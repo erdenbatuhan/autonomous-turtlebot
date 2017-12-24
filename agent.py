@@ -10,6 +10,7 @@ from keras.optimizers import Adam
 # TODO - Deep RL Algorithm
 class Agent:
 
+    __MODELS_DIR = "./models/"
     __STATE_DIM = 1 + 8 * 8 + 1
     __NUM_ACTIONS = 3
     __BATCH_SIZE = 50
@@ -74,6 +75,17 @@ class Agent:
 
         return model, inputs, targets
 
+    def __load_models(self):
+        try:
+            self.__model1.load_weights(self.__MODELS_DIR + "model1.h5")
+            self.__model2.load_weights(self.__MODELS_DIR + "model2.h5")
+        except OSError:
+            pass
+
+    def __save_models(self):
+        self.__model1.save_weights(self.__MODELS_DIR + "model1.h5")
+        self.__model2.save_weights(self.__MODELS_DIR + "model2.h5")
+
     def __get_best_action(self, state):
         if np.random.rand() <= self.__EPSILON:
             return np.random.randint(0, self.__NUM_ACTIONS, size=1)[0]
@@ -82,6 +94,8 @@ class Agent:
         return np.argmax(np.add(Q1, Q2))
 
     def train(self, epoch, max_episode_length):
+        self.__load_models()
+
         reach_count = 0
         self.__episodes = []
 
@@ -111,7 +125,9 @@ class Agent:
                 state = next_state
 
             self.__episodes.append(step)
+            if episode % 10 == 0:
+                self.__save_models()
 
-        self.__connector.send_data(-2)  # Stop simulator
+        self.__connector.send_data(-2)  # Stop simulation
         return self.__episodes
 

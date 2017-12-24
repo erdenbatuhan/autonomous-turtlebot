@@ -43,6 +43,7 @@ class Environment:
             pass
 
         self.__initial_distance = self.__get_distance_between(self.__position, self.__destination)
+        self.__initial_destination = self.__destination
 
     @staticmethod
     def __get_angle_between(p1, p2):
@@ -184,7 +185,10 @@ class Environment:
             self.__vel_pub.publish(vel_cmd)
             self.__rate.sleep()
 
-            if self.__crashed:
+            if self.__destination != self.__initial_destination:
+                self.__terminal = True
+
+            if self.__terminal or self.__crashed:
                 break
 
         state = self.get_state()

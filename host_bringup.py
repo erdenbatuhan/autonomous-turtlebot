@@ -4,7 +4,7 @@ import host
 
 
 EPOCH = 1000
-MAX_EPISODE_LENGTH = 1000
+MAX_EPISODE_LENGTH = 250
 
 
 def plot_learning_curve(episodes):

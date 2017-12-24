@@ -69,9 +69,9 @@ class Agent:
             if terminal or crashed:
                 targets[i] = reward
             elif probability > .5:
-                targets[i] = reward * self.__DISCOUNT_FACTOR * Q2[np.argmax(Q1)]
+                targets[i] = reward + self.__DISCOUNT_FACTOR * Q2[np.argmax(Q1)]
             else:
-                targets[i] = reward * self.__DISCOUNT_FACTOR * Q1[np.argmax(Q2)]
+                targets[i] = reward + self.__DISCOUNT_FACTOR * Q1[np.argmax(Q2)]
 
         return model, inputs, targets
 

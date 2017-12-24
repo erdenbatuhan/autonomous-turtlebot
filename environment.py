@@ -137,16 +137,21 @@ class Environment:
 
         return distance, depth, time_passed
 
-    def get_reward(self, state):
+    def __get_direct_reward(self, state):
         if self.__terminal:
-            self.__shutdown()
             return 200
         elif self.__crashed or state[2] > self.__TIME_LIMIT:
-            self.reset_base()
             return -100
 
-        # c: The coefficient array for each state element (distance, depth, time_passed)
-        c = [-2, 3, -1]
+        return 0
+
+    def get_reward(self, state):
+        c = [-20, 3, -1]  # coefficients for each state element (distance, depth, time_passed)
+        direct_reward = self.__get_direct_reward(state)
+
+        if direct_reward != 0:
+            self.reset_base()
+            return direct_reward
 
         reward = sum([state[i] * c[i] for i in range(len(state))])  # 8x8 Reward
         mini_reward = np.array(3, dtype=np.float32)

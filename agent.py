@@ -1,66 +1,86 @@
 import numpy as np
-import host
+from random import random
+from memory import Memory
+
 from keras.models import Sequential
 from keras.layers.core import Dense
 from keras.optimizers import Adam
-from random import randint
-from memory import Memory
 
 
 # TODO - Deep RL Algorithm
 class Agent:
 
+    __STATE_DIM = (1, (8, 8), 1)
+    __NUM_ACTIONS = 3
+    __BATCH_SIZE = 50
     __LEARNING_RATE = .01
     __DISCOUNT_FACTOR = .99
     __EPSILON = .1
 
-    def __init__(self):
+    def __init__(self, connector, server):
+        self.__connector = connector
+        self.__server = server
+
         self.__memory = Memory(500)
-        self.__model = None
-        self.__server = host.HostServer()
-        self.__server.listen()
-        self.__connector = host.HostConnector()
+        self.__model1, self.__model2 = self.__build_model(), self.__build_model()
+        self.__episodes = []
+
+    @staticmethod
+    def __report(step, episode, epoch, loss, reach_count, state, action):
+        message = "Step {} Epoch {:03d}/{:03d} | Loss {:.4f} | Win count {} | Pos {:.3f} | Act {}"
+        print(message.format(step, episode, (epoch - 1), loss, reach_count, state[0, 0], (action - 1)))
+
+    def __build_model(self):
+        model = Sequential()
+
+        model.add(Dense(200, input_shape=(2, ), activation="relu"))
+        model.add(Dense(self.__NUM_ACTIONS, activation="linear"))
+        model.compile(Adam(lr=self.__LEARNING_RATE), "mse")
+
+        return model
+
+    def __adapt_model(self):
+        probability = random()
+
+        len_memory = len(self.__memory)
+        model = self.__model1 if probability > .5 else self.__model2
+
+        inputs = np.zeros((min(len_memory, self.__BATCH_SIZE), self.__STATE_DIM))
+        targets = np.zeros((inputs.shape[0], self.__NUM_ACTIONS))
+
+        for i, ind in enumerate(np.random.randint(0, len_memory, inputs.shape[0])):
+            state, action, reward, next_state = self.__memory.get_experience(ind, 0)
+            terminal = self.__memory.get_experience(ind, 1)
+
+            inputs[i:i + 1] = state
+            targets[i] = model.predict(state)[0]
+
+            Q1 = self.__model1.predict(next_state)[0]
+            Q2 = self.__model2.predict(next_state)[0]
+
+            if terminal:
+                targets[i, action] = reward
+            elif probability > .5:
+                targets[i, action] = reward * self.__DISCOUNT_FACTOR * Q2[np.argmax(Q1)]
+            else:
+                targets[i, action] = reward * self.__DISCOUNT_FACTOR * Q1[np.argmax(Q2)]
+
+        return model, inputs, targets
 
     def __get_best_action(self, state):
-        """
-        mini_Q = np.zeros(3, dtype=np.float32)
+        if np.random.rand() <= self.__EPSILON:
+            return np.random.randint(0, self.__NUM_ACTIONS, size=1)[0]
 
-        mini_Q[0] = np.average(self.Q[state][:, 0:2])  # LEFT
-        mini_Q[1] = np.average(self.Q[state][:, 2:6])  # FORWARD
-        mini_Q[2] = np.average(self.Q[state][:, 6:8])  # RIGHT
-
-        return np.argmax(mini_Q)
-        """
-        action = randint(0, 2)
-        return action
-
-    def __learn(self):
-        pass
-
-    def __adapt(self):
-        pass
-
-    def initialize_model(self, hidden_size, input_size, num_actions, learning_rate):
-        model = Sequential()
-        model.add(Dense(hidden_size, input_shape=(input_size, ), activation="relu"))
-
-        if hidden_size <= 100:
-            model.add(Dense(hidden_size, activation="sigmoid"))
-
-        model.add(Dense(num_actions, activation="linear"))
-        model.compile(Adam(lr=learning_rate), "mse")
-
-        self.__model = model
+        Q1, Q2 = self.__model1.predict(state)[0], self.__model2.predict(state)[0]
+        return np.argmax(np.add(Q1, Q2))
 
     def train(self, epoch, max_episode_length):
         reach_count = 0
-        self.episodes = []
-        state = self.__server.receive_data()
+        self.__episodes = []
 
         for episode in range(epoch):
-            loss = 0.
-            terminal = False
-            step = 0
+            state = self.__server.receive_data()
+            loss, terminal, step = 0., False, 0
 
             while not terminal:
                 step += 1
@@ -70,26 +90,22 @@ class Agent:
                 action = self.__get_best_action(state)
                 self.__connector.send_data(action)
 
-                next_state, reward, terminal = self.__server.receive_data()
-                # distance, depth, time_passed = state
+                next_state, reward, terminal = self.__server.receive_data()[0]
 
                 if terminal:
                     reach_count += 1
 
-                # self.remember([[state, action, reward, next_state], terminal])  # store experience
-                model, inputs, targets = self.__adapt()  # adapt model
-                #loss += model.train_on_batch(inputs, targets)
+                self.__memory.remember_experience([[state, action, reward, next_state], terminal])
+                model, inputs, targets = self.__adapt_model()
+                loss += model.train_on_batch(inputs, targets)
 
-                #if step % 100 == 1 or terminal:
-                #    print("Step {} Epoch {:03d}/{:03d} | Loss {:.4f} | Win count {} | Pos {:.3f} | Act {}".
-                #          format(step, episode, (epoch - 1), loss, reach_count, state[0, 0], (action - 1)))
+                if step % 100 == 1 or terminal:
+                    self.__report(step, episode, epoch, loss, reach_count, state, action)
 
                 state = next_state
 
-            self.episodes.append(step)
+            self.__episodes.append(step)
 
-
-agent = Agent()
-agent.initialize_model(100, 2, 3, 0.1)
-agent.train(1000, 1000)
+        self.__connector.send_data(-1)
+        return self.__episodes
 

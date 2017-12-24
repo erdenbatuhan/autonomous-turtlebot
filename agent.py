@@ -10,7 +10,7 @@ from keras.optimizers import Adam
 # TODO - Deep RL Algorithm
 class Agent:
 
-    __STATE_DIM = (1, (8, 8), 1)
+    __STATE_DIM = 1 + 8 * 8 + 1
     __NUM_ACTIONS = 3
     __BATCH_SIZE = 50
     __LEARNING_RATE = .01
@@ -29,6 +29,10 @@ class Agent:
     def __report(step, episode, epoch, loss, reach_count, state, action):
         message = "Step {} Epoch {:03d}/{:03d} | Loss {:.4f} | Win count {} | Pos {:.3f} | Act {}"
         print(message.format(step, episode, (epoch - 1), loss, reach_count, state[0, 0], (action - 1)))
+
+    @staticmethod
+    def __predict(model, state):
+        return model.predict(np.array([state]))[0]
 
     def __build_model(self):
         model = Sequential()
@@ -52,18 +56,18 @@ class Agent:
             state, action, reward, next_state = self.__memory.get_experience(ind, 0)
             terminal = self.__memory.get_experience(ind, 1)
 
-            inputs[i:i + 1] = state
-            targets[i] = model.predict(state)[0]
+            inputs[i] = state
+            targets[i] = self.__predict(model, state)
 
-            Q1 = self.__model1.predict(next_state)[0]
-            Q2 = self.__model2.predict(next_state)[0]
+            Q1 = self.__predict(self.__model1, next_state)
+            Q2 = self.__predict(self.__model2, next_state)
 
             if terminal:
-                targets[i, action] = reward
+                targets[i] = reward
             elif probability > .5:
-                targets[i, action] = reward * self.__DISCOUNT_FACTOR * Q2[np.argmax(Q1)]
+                targets[i] = reward * self.__DISCOUNT_FACTOR * Q2[np.argmax(Q1)]
             else:
-                targets[i, action] = reward * self.__DISCOUNT_FACTOR * Q1[np.argmax(Q2)]
+                targets[i] = reward * self.__DISCOUNT_FACTOR * Q1[np.argmax(Q2)]
 
         return model, inputs, targets
 
@@ -71,7 +75,7 @@ class Agent:
         if np.random.rand() <= self.__EPSILON:
             return np.random.randint(0, self.__NUM_ACTIONS, size=1)[0]
 
-        Q1, Q2 = self.__model1.predict(state)[0], self.__model2.predict(state)[0]
+        Q1, Q2 = self.__predict(self.__model1, state), self.__predict(self.__model2, state)
         return np.argmax(np.add(Q1, Q2))
 
     def train(self, epoch, max_episode_length):

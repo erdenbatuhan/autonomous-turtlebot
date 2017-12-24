@@ -25,6 +25,7 @@ class VMConnector:
         self.connect_to_target()
         serialized_data = pickle.dumps(data)
         self.target_socket.send(serialized_data)
+        self.target_socket.close()
 
 
 class VMServer:
@@ -53,6 +54,4 @@ class VMServer:
 
             stream.append(data)
 
-        print(pickle.loads(b"".join(stream), encoding='latin1'))
-        return pickle.loads(b"".join(stream), encoding='latin1')
-
+        return pickle.loads(b"".join(stream))

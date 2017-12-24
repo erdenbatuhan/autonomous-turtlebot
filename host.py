@@ -36,7 +36,7 @@ class HostServer:
         cp.read("./config.ini")
 
         self.host = cp.get("Network", "host.addr")  # IP Address of host PC
-        self.listen_port = int(cp.get("Network", "port.header")) + 2
+        self.listen_port = int(cp.get("Network", "port.header"))
         self.listen_socket = None
         self.last_received = None
 

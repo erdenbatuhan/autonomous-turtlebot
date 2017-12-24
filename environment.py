@@ -15,7 +15,6 @@ class Environment:
 
     __STATE_DIM = 1 + 8 * 8 + 1
     __FREQUENCY = 10
-    __TIME_LIMIT = 10 ** 5
     
     def __init__(self, base_name, destination_name):
         rospy.init_node("Environment", anonymous=False)
@@ -129,42 +128,35 @@ class Environment:
 
         return c
 
+    def flatten(self, state):
+        state_flattened = np.zeros(self.__STATE_DIM)
+        last_element = len(state_flattened) - 1
+
+        state_flattened[0] = state[0]
+        state_flattened[1:last_element] = state[1].reshape(1, -1)
+        state_flattened[last_element] = state[2]
+
+        return state_flattened
+
     def get_state(self):
         # S(t) = (distance(t), depth(t), time_passed(t))
-        state = np.zeros(self.__STATE_DIM)
-        last_element = len(state) - 1
 
         distance = self.__get_distance_between(self.__position, self.__destination) / self.__initial_distance
         depth = self.__minimize(self.__depth_image_raw)
         time_passed = time.time() - self.__initial_time
 
-        state[0] = distance
-        state[1:last_element] = depth.reshape(1, -1)
-        state[last_element] = time_passed
-
-        return state  # Shape = (66, )
-
-    def __get_direct_reward(self, state):
-        if self.__terminal:
-            return 200
-        elif self.__crashed or state[2] > self.__TIME_LIMIT:
-            return -100
-
-        return 0
+        return distance, depth, time_passed
 
     def get_reward(self, state):
-        last_element = len(state) - 1
-        state = state[0], state[1:last_element], state[last_element]
-
         c = [-20, 3, -1]  # coefficients for each state element (distance, depth, time_passed)
-        direct_reward = self.__get_direct_reward(state)
 
-        if direct_reward != 0:
-            self.reset_base()
-            return direct_reward
+        if self.__terminal:
+            return 200
+        elif self.__crashed:
+            return -100
 
         reward = sum([state[i] * c[i] for i in range(len(state))])  # 8x8 Reward
-        mini_reward = np.array(3, dtype=np.float32)
+        mini_reward = np.zeros(3)
 
         mini_reward[0] = np.average(reward[:, 0:2])  # LEFT
         mini_reward[1] = np.average(reward[:, 2:6])  # FORWARD
@@ -198,7 +190,7 @@ class Environment:
         state = self.get_state()
         reward = self.get_reward(state)
 
-        return state, reward, self.__terminal
+        return self.flatten(state), reward, self.__terminal, self.__crashed
 
     def reset_base(self):
         rospy.wait_for_service("/gazebo/set_model_state")

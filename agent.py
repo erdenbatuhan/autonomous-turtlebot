@@ -27,8 +27,11 @@ class Agent:
 
     @staticmethod
     def __report(step, episode, epoch, loss, reach_count, state, action):
-        message = "Step {} Epoch {:03d}/{:03d} | Loss {:.4f} | Win count {} | Pos {:.3f} | Act {}"
-        print(message.format(step, episode, (epoch - 1), loss, reach_count, state[0, 0], (action - 1)))
+        message = "Step {} Epoch {:03d}/{:03d} | Loss {:.4f} | Win count {} | " \
+                  "Distance {:.3f} | Time Passed {:.3f} | Act {}"
+        last_element = len(state) - 1
+        print(message.format(step, episode, (epoch - 1), loss, reach_count,
+                             state[0], state[last_element], (action - 1)))
 
     @staticmethod
     def __predict(model, state):
@@ -37,7 +40,7 @@ class Agent:
     def __build_model(self):
         model = Sequential()
 
-        model.add(Dense(200, input_shape=(2, ), activation="relu"))
+        model.add(Dense(200, input_shape=(self.__STATE_DIM, ), activation="relu"))
         model.add(Dense(self.__NUM_ACTIONS, activation="linear"))
         model.compile(Adam(lr=self.__LEARNING_RATE), "mse")
 
@@ -54,7 +57,7 @@ class Agent:
 
         for i, ind in enumerate(np.random.randint(0, len_memory, inputs.shape[0])):
             state, action, reward, next_state = self.__memory.get_experience(ind, 0)
-            terminal = self.__memory.get_experience(ind, 1)
+            terminal, crashed = self.__memory.get_experience(ind, 1)
 
             inputs[i] = state
             targets[i] = self.__predict(model, state)
@@ -62,7 +65,7 @@ class Agent:
             Q1 = self.__predict(self.__model1, next_state)
             Q2 = self.__predict(self.__model2, next_state)
 
-            if terminal:
+            if terminal or crashed:
                 targets[i] = reward
             elif probability > .5:
                 targets[i] = reward * self.__DISCOUNT_FACTOR * Q2[np.argmax(Q1)]
@@ -84,32 +87,31 @@ class Agent:
 
         for episode in range(epoch):
             state = self.__server.receive_data()
-            loss, terminal, step = 0., False, 0
+            step, terminal, crashed, loss = 0, False, False, 0.
 
-            while not terminal:
+            while True:
                 step += 1
-                if step > max_episode_length:
+                if step > max_episode_length or crashed or terminal:
+                    self.__connector.send_data(-1)  # Reset base
                     break
 
                 action = self.__get_best_action(state)
-                self.__connector.send_data(action)
+                self.__connector.send_data(int(action))
 
-                next_state, reward, terminal = self.__server.receive_data()[0]
+                next_state, reward, terminal, crashed = self.__server.receive_data()
 
                 if terminal:
                     reach_count += 1
 
-                self.__memory.remember_experience([[state, action, reward, next_state], terminal])
+                self.__memory.remember_experience([[state, action, reward, next_state], [terminal, crashed]])
                 model, inputs, targets = self.__adapt_model()
                 loss += model.train_on_batch(inputs, targets)
 
-                if step % 100 == 1 or terminal:
-                    self.__report(step, episode, epoch, loss, reach_count, state, action)
-
+                self.__report(step, episode, epoch, loss, reach_count, state, action)
                 state = next_state
 
             self.__episodes.append(step)
 
-        self.__connector.send_data(-1)
+        self.__connector.send_data(-2)  # Stop simulator
         return self.__episodes
 

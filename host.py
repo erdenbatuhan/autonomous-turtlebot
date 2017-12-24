@@ -13,7 +13,7 @@ class HostConnector:
         cp = ConfigParser()
         cp.read("./config.ini")
 
-        self.target = cp.get("Network", "vm.addr")  # cp.get("Network", "vm.addr")IP Address of VM
+        self.target = cp.get("Network", "vm.addr")  # IP Address of VM
         self.target_port = int(cp.get("Network", "port.header")) + 1
         self.target_socket = None
         self.last_sent = None

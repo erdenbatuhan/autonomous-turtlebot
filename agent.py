@@ -1,9 +1,11 @@
 import numpy as np
+import host
 from keras.models import Sequential
 from keras.layers.core import Dense
 from keras.optimizers import Adam
-import host
 from random import randint
+from memory import Memory
+
 
 # TODO - Deep RL Algorithm
 class Agent:
@@ -13,11 +15,11 @@ class Agent:
     __EPSILON = .1
 
     def __init__(self):
-        self.Q = {}  # Each Q Value is 2D, 8x8 Matrix.
-        self.model = None
-        self.server = host.HostServer()
-        self.server.listen()
-        self.connector = host.HostConnector()
+        self.__memory = Memory(500)
+        self.__model = None
+        self.__server = host.HostServer()
+        self.__server.listen()
+        self.__connector = host.HostConnector()
 
     def __get_best_action(self, state):
         """
@@ -29,18 +31,13 @@ class Agent:
 
         return np.argmax(mini_Q)
         """
-        Q = self.model.predict(np.asarray(state))
-        print(Q)
-        action = np.argmax(Q)
-        print(action)
         action = randint(0, 2)
-
         return action
 
     def __learn(self):
         pass
 
-    def adapt(self):
+    def __adapt(self):
         pass
 
     def initialize_model(self, hidden_size, input_size, num_actions, learning_rate):
@@ -53,12 +50,12 @@ class Agent:
         model.add(Dense(num_actions, activation="linear"))
         model.compile(Adam(lr=learning_rate), "mse")
 
-        self.model = model
+        self.__model = model
 
     def train(self, epoch, max_episode_length):
         reach_count = 0
         self.episodes = []
-        state = self.server.receive_data()
+        state = self.__server.receive_data()
 
         for episode in range(epoch):
             loss = 0.
@@ -71,15 +68,16 @@ class Agent:
                     break
 
                 action = self.__get_best_action(state)
-                self.connector.send_data(action)
-                data = self.server.receive_data()  # Data from simulation [State, reward, terminal]
-                next_state, reward, terminal = data[0], data[1], data[2]
-                # distance, depth, time_passed = state[0], state[1], state[2]
+                self.__connector.send_data(action)
+
+                next_state, reward, terminal = self.__server.receive_data()
+                # distance, depth, time_passed = state
+
                 if terminal:
                     reach_count += 1
 
                 # self.remember([[state, action, reward, next_state], terminal])  # store experience
-                model, inputs, targets = self.adapt()  # adapt model
+                model, inputs, targets = self.__adapt()  # adapt model
                 #loss += model.train_on_batch(inputs, targets)
 
                 #if step % 100 == 1 or terminal:
@@ -90,6 +88,8 @@ class Agent:
 
             self.episodes.append(step)
 
+
 agent = Agent()
 agent.initialize_model(100, 2, 3, 0.1)
 agent.train(1000, 1000)
+

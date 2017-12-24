@@ -30,6 +30,10 @@ class Agent:
         message = "Step {} Epoch {:03d}/{:03d} | Loss {:.4f} | Win count {} | Pos {:.3f} | Act {}"
         print(message.format(step, episode, (epoch - 1), loss, reach_count, state[0, 0], (action - 1)))
 
+    @staticmethod
+    def __predict(model, state):
+        return model.predict(np.array([state]))[0]
+
     def __build_model(self):
         model = Sequential()
 
@@ -53,10 +57,10 @@ class Agent:
             terminal = self.__memory.get_experience(ind, 1)
 
             inputs[i] = state
-            targets[i] = model.predict(state)[0]
+            targets[i] = self.__predict(model, state)
 
-            Q1 = self.__model1.predict(next_state)[0]
-            Q2 = self.__model2.predict(next_state)[0]
+            Q1 = self.__predict(self.__model1, next_state)
+            Q2 = self.__predict(self.__model2, next_state)
 
             if terminal:
                 targets[i] = reward
@@ -71,7 +75,7 @@ class Agent:
         if np.random.rand() <= self.__EPSILON:
             return np.random.randint(0, self.__NUM_ACTIONS, size=1)[0]
 
-        Q1, Q2 = self.__model1.predict(state)[0], self.__model2.predict(state)[0]
+        Q1, Q2 = self.__predict(self.__model1, state), self.__predict(self.__model2, state)
         return np.argmax(np.add(Q1, Q2))
 
     def train(self, epoch, max_episode_length):

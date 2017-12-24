@@ -1,39 +1,28 @@
-import numpy as np
+from matplotlib import pyplot as plt
+from agent import Agent
 import host
 
 
-def get_action_using(depth):
-    decision = np.zeros(3)
+EPOCH = 1000
+MAX_EPISODE_LENGTH = 1000
 
-    decision[0] = np.average(depth[:, 0:2])  # LEFT
-    decision[1] = np.average(depth[:, 2:6])  # FORWARD
-    decision[2] = np.average(depth[:, 6:8])  # RIGHT
 
-    return np.argmax(decision)
+def plot_learning_curve(episodes):
+    plt.plot(episodes)
+    plt.xlabel("Episode")
+    plt.ylabel("Length of episode")
+    plt.show()
 
 
 def main():
-    server = host.HostServer()
     connector = host.HostConnector()
+    server = host.HostServer()
     server.listen()
 
-    while True:
-        state = server.receive_data()  # [Distance, Depth, TimePassed]
+    agent = Agent(connector=connector, server=server)
+    episodes = agent.train(epoch=EPOCH, max_episode_length=MAX_EPISODE_LENGTH)
 
-        print("Distance")
-        print(state[0])
-        print("Depth")
-        print(state[1])
-        print("Time")
-        print(state[2])
-
-        depth = state[1]
-        action = str(get_action_using(depth))
-
-        print("------------------\n")
-        print(action)
-
-        connector.send_data([action])
+    plot_learning_curve(episodes)
 
 
 if __name__ == '__main__':

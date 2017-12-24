@@ -15,7 +15,6 @@ class Environment:
 
     __STATE_DIM = 1 + 8 * 8 + 1
     __FREQUENCY = 10
-    __TIME_LIMIT = 10 ** 5
     
     def __init__(self, base_name, destination_name):
         rospy.init_node("Environment", anonymous=False)
@@ -148,24 +147,16 @@ class Environment:
 
         return distance, depth, time_passed
 
-    def __get_direct_reward(self, state):
-        if self.__terminal:
-            return 200
-        elif self.__crashed or state[2] > self.__TIME_LIMIT:
-            return -100
-
-        return 0
-
     def get_reward(self, state):
         c = [-20, 3, -1]  # coefficients for each state element (distance, depth, time_passed)
-        direct_reward = self.__get_direct_reward(state)
 
-        if direct_reward != 0:
-            self.reset_base()
-            return direct_reward
+        if self.__terminal:
+            return 200
+        elif self.__crashed:
+            return -100
 
         reward = sum([state[i] * c[i] for i in range(len(state))])  # 8x8 Reward
-        mini_reward = np.array(3, dtype=np.float32)
+        mini_reward = np.zeros(3)
 
         mini_reward[0] = np.average(reward[:, 0:2])  # LEFT
         mini_reward[1] = np.average(reward[:, 2:6])  # FORWARD
@@ -199,7 +190,7 @@ class Environment:
         state = self.get_state()
         reward = self.get_reward(state)
 
-        return self.flatten(state), reward, self.__terminal
+        return self.flatten(state), reward, self.__terminal, self.__crashed
 
     def reset_base(self):
         rospy.wait_for_service("/gazebo/set_model_state")

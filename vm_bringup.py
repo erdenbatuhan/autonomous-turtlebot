@@ -28,13 +28,12 @@ def main():
 
     state = env.get_state()
     conn.send_data(state)
-    action = int(server.receive_data()[0])
+    action = server.receive_data()
 
     for _ in range(EPOCH):
-        # action = randint(0, 2)
         next_state, reward, terminal = env.act(action)
         conn.send_data(next_state)
-        action = int(server.receive_data()[0])
+        action = server.receive_data()
 
         if terminal:
             print "Destination Reached!"

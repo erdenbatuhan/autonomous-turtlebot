@@ -33,13 +33,16 @@ class Environment:
         self.__terminal = False
         self.__crashed = False
 
+        self.__subscriptions_ready = np.zeros(2)
         self.__subscribe_model_states()
         self.__subscribe_depth_image_raw()
         self.__subscribe_bumper_event()
 
         # Wait for the first image to be taken
-        while self.__depth_image_raw is None:
+        while np.sum(self.__subscriptions_ready) < 2:
             pass
+
+        self.__initial_distance = self.__get_distance_between(self.__position, self.__destination)
 
     @staticmethod
     def __get_angle_between(p1, p2):
@@ -93,6 +96,8 @@ class Environment:
         self.__destination["x"] = destination.x
         self.__destination["y"] = destination.y
 
+        self.__subscriptions_ready[0] = 1
+
     def __depth_image_raw_callback(self, depth_image_raw):
         try:
             self.__depth_image_raw = self.__bridge.imgmsg_to_cv2(depth_image_raw, "32FC1")
@@ -100,21 +105,19 @@ class Environment:
             print(e)
 
         self.__depth_image_raw = np.array(self.__depth_image_raw, dtype=np.float32)
+        self.__subscriptions_ready[1] = 1
 
     def __bumper_event_callback(self, bumper_event):
         self.__crashed = True if bumper_event.bumper == 1 else False
 
     def __subscribe_model_states(self):
         rospy.Subscriber("/gazebo/model_states", ModelStates, self.__model_states_callback)
-        # rospy.sleep(1)
 
     def __subscribe_depth_image_raw(self):
         rospy.Subscriber("/camera/depth/image_raw", Image, self.__depth_image_raw_callback)
-        # rospy.sleep(1)
 
     def __subscribe_bumper_event(self):
         rospy.Subscriber("/mobile_base/events/bumper", BumperEvent, self.__bumper_event_callback)
-        # rospy.sleep(1)
 
     def __get_distance_between(self, p1, p2):
         a, b = p2["x"] - p1["x"], p2["y"] - p1["y"]
@@ -128,7 +131,7 @@ class Environment:
     def get_state(self):
         # S(t) = (distance(t), depth(t), time_passed(t))
 
-        distance = self.__get_distance_between(self.__position, self.__destination)
+        distance = self.__get_distance_between(self.__position, self.__destination) / self.__initial_distance
         depth = self.__minimize(self.__depth_image_raw)
         time_passed = time.time() - self.__initial_time
 
@@ -142,12 +145,17 @@ class Environment:
             self.reset_base()
             return -100
 
-        # Importance hierarchy: Depth > Distance > Time Passed
-        # c: The coefficient array for each state element
-        c = [2, 3, -1]
-        reward = sum([state[i] * c[i] for i in range(len(state))])
+        # c: The coefficient array for each state element (distance, depth, time_passed)
+        c = [-2, 3, -1]
 
-        return reward  # 2D Reward Function, 8x8 Matrix.
+        reward = sum([state[i] * c[i] for i in range(len(state))])  # 8x8 Reward
+        mini_reward = np.array(3, dtype=np.float32)
+
+        mini_reward[0] = np.average(reward[:, 0:2])  # LEFT
+        mini_reward[1] = np.average(reward[:, 2:6])  # FORWARD
+        mini_reward[2] = np.average(reward[:, 6:8])  # RIGHT
+
+        return mini_reward  # 1x3 Reward
 
     def act(self, action, v1=.3, v2=.05, duration=10):
         vel_cmd = Twist()

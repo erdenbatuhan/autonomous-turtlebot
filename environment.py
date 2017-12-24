@@ -129,20 +129,24 @@ class Environment:
 
         return c
 
+    def flatten(self, state):
+        state_flattened = np.zeros(self.__STATE_DIM)
+        last_element = len(state_flattened) - 1
+
+        state_flattened[0] = state[0]
+        state_flattened[1:last_element] = state[1].reshape(1, -1)
+        state_flattened[last_element] = state[2]
+
+        return state_flattened
+
     def get_state(self):
         # S(t) = (distance(t), depth(t), time_passed(t))
-        state = np.zeros(self.__STATE_DIM)
-        last_element = len(state) - 1
 
         distance = self.__get_distance_between(self.__position, self.__destination) / self.__initial_distance
         depth = self.__minimize(self.__depth_image_raw)
         time_passed = time.time() - self.__initial_time
 
-        state[0] = distance
-        state[1:last_element] = depth.reshape(1, -1)
-        state[last_element] = time_passed
-
-        return state  # Shape = (66, )
+        return distance, depth, time_passed
 
     def __get_direct_reward(self, state):
         if self.__terminal:
@@ -153,9 +157,6 @@ class Environment:
         return 0
 
     def get_reward(self, state):
-        last_element = len(state) - 1
-        state = state[0], state[1:last_element], state[last_element]
-
         c = [-20, 3, -1]  # coefficients for each state element (distance, depth, time_passed)
         direct_reward = self.__get_direct_reward(state)
 
@@ -198,7 +199,7 @@ class Environment:
         state = self.get_state()
         reward = self.get_reward(state)
 
-        return state, reward, self.__terminal
+        return self.flatten(state), reward, self.__terminal
 
     def reset_base(self):
         rospy.wait_for_service("/gazebo/set_model_state")

@@ -14,7 +14,7 @@ def main():
     server = vm.VMServer()
     server.listen()
 
-    state = env.get_state()  # Initial state
+    state = env.flatten(env.get_state())  # Initial state
     connector.send_data(state)
     action = server.receive_data()
 

@@ -37,7 +37,7 @@ class Agent:
     def __build_model(self):
         model = Sequential()
 
-        model.add(Dense(200, input_shape=(2, ), activation="relu"))
+        model.add(Dense(200, input_shape=(self.__STATE_DIM, ), activation="relu"))
         model.add(Dense(self.__NUM_ACTIONS, activation="linear"))
         model.compile(Adam(lr=self.__LEARNING_RATE), "mse")
 
@@ -92,7 +92,7 @@ class Agent:
                     break
 
                 action = self.__get_best_action(state)
-                self.__connector.send_data(action)
+                self.__connector.send_data(int(action))
 
                 next_state, reward, terminal = self.__server.receive_data()[0]
 

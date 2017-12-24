@@ -13,6 +13,7 @@ from cv_bridge import CvBridge, CvBridgeError
 
 class Environment:
 
+    __STATE_DIM = 1 + 8 * 8 + 1
     __FREQUENCY = 10
     __TIME_LIMIT = 10 ** 5
     
@@ -130,12 +131,18 @@ class Environment:
 
     def get_state(self):
         # S(t) = (distance(t), depth(t), time_passed(t))
+        state = np.zeros(self.__STATE_DIM)
+        last_element = len(state) - 1
 
         distance = self.__get_distance_between(self.__position, self.__destination) / self.__initial_distance
         depth = self.__minimize(self.__depth_image_raw)
         time_passed = time.time() - self.__initial_time
 
-        return distance, depth, time_passed
+        state[0] = distance
+        state[1:last_element] = depth.reshape(1, -1)
+        state[last_element] = time_passed
+
+        return state  # Shape = (66, )
 
     def __get_direct_reward(self, state):
         if self.__terminal:
@@ -146,6 +153,9 @@ class Environment:
         return 0
 
     def get_reward(self, state):
+        last_element = len(state) - 1
+        state = state[0], state[1:last_element], state[last_element]
+
         c = [-20, 3, -1]  # coefficients for each state element (distance, depth, time_passed)
         direct_reward = self.__get_direct_reward(state)
 

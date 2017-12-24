@@ -10,7 +10,7 @@ from keras.optimizers import Adam
 # TODO - Deep RL Algorithm
 class Agent:
 
-    __STATE_DIM = (1, (8, 8), 1)
+    __STATE_DIM = 1 + 8 * 8 + 1
     __NUM_ACTIONS = 3
     __BATCH_SIZE = 50
     __LEARNING_RATE = .01
@@ -52,18 +52,18 @@ class Agent:
             state, action, reward, next_state = self.__memory.get_experience(ind, 0)
             terminal = self.__memory.get_experience(ind, 1)
 
-            inputs[i:i + 1] = state
+            inputs[i] = state
             targets[i] = model.predict(state)[0]
 
             Q1 = self.__model1.predict(next_state)[0]
             Q2 = self.__model2.predict(next_state)[0]
 
             if terminal:
-                targets[i, action] = reward
+                targets[i] = reward
             elif probability > .5:
-                targets[i, action] = reward * self.__DISCOUNT_FACTOR * Q2[np.argmax(Q1)]
+                targets[i] = reward * self.__DISCOUNT_FACTOR * Q2[np.argmax(Q1)]
             else:
-                targets[i, action] = reward * self.__DISCOUNT_FACTOR * Q1[np.argmax(Q2)]
+                targets[i] = reward * self.__DISCOUNT_FACTOR * Q1[np.argmax(Q2)]
 
         return model, inputs, targets
 

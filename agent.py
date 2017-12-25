@@ -14,7 +14,7 @@ class Agent:
     __NUM_ACTIONS = 3
     __BATCH_SIZE = 100
     __MAX_MEMORY = 1000
-    __SAFETY = .4
+    __SAFETY = .5
     __LEARNING_RATE = .01
     __DISCOUNT_FACTOR = .95
     __EPSILON = .1
@@ -32,7 +32,7 @@ class Agent:
     @staticmethod
     def __report(step, episode, epoch, loss_greedy, loss_safe, reach_count, state, action):
         message = "Step {} Epoch {:03d}/{:03d} | Loss Greedy {:.2f} | Loss Safe {:.2f} | " \
-                  "Reach count {} | Distance {:.3f} | Act {}"
+                  "Reach count {} | Distance {:.2f} | Act {}"
         print(message.format(step, episode, (epoch - 1), loss_greedy, loss_safe, reach_count, state[0], action))
 
     def __build_model(self):

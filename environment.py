@@ -119,18 +119,18 @@ class Environment:
         distance, self.__terminal = util.get_distance_between(self.__position, self.__destination)
         depth = self.__minimize(self.__depth_image_raw)
         # time_passed = time.time() - self.__initial_time
-        distance = util.to_precision(distance, 2)
 
-        return [distance, distance, distance], depth, 0
+        distance /= self.__initial_distance  # Get distance as percentage
+        return util.to_precision(distance, 2), util.to_precision(np.average(depth), 1), 0
 
     def get_reward(self, state):
-        # c = [-10, 1, 0]  # coefficients for each state element (distance, depth, time_passed)
-        reward = [(-1) * (np.average(state[0]) ** 2), np.average(state[1])]
+        c = [-10, 1, 0]  # coefficients for each state element (distance, depth, time_passed)
+        reward = [state[i] * c[i] for i in range(len(state))]
 
         if self.__terminal:
-            reward[0] = 150
+            reward[0] = 1000
         elif self.__crashed:
-            reward[1] = -25
+            reward[1] = -100
 
         return reward
 

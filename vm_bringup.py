@@ -3,7 +3,7 @@ import vm
 
 
 BASE_NAME = "mobile_base"
-DESTINATION_NAME = "unit_sphere_3"
+DESTINATION_NAME = "bowl"
 
 
 def main():

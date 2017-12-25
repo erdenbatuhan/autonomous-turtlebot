@@ -15,10 +15,10 @@ class Environment:
 
     __STATE_DIM = 1 + 8 * 8 + 1
     __FREQUENCY = 10
-    
+
     def __init__(self, base_name, destination_name):
         rospy.init_node("Environment", anonymous=False)
-        rospy.loginfo("CTRL + C to terminate..")   
+        rospy.loginfo("CTRL + C to terminate..")
         rospy.on_shutdown(self.__shutdown)
 
         self.__vel_pub = rospy.Publisher("/mobile_base/commands/velocity", Twist, queue_size=5)
@@ -38,12 +38,33 @@ class Environment:
         self.__subscribe_depth_image_raw()
         self.__subscribe_bumper_event()
 
-        # Wait for the first image to be taken
-        while np.sum(self.__subscriptions_ready) < 2:
-            pass
+        self.__wait_for_image()
 
         self.__initial_distance = self.__get_distance_between(self.__position, self.__destination)
         self.__initial_destination = self.__destination
+
+    def __shutdown(self):
+        rospy.loginfo("TurtleBot is stopping..")
+        self.__vel_pub.publish(Twist())
+
+        rospy.sleep(1)
+        rospy.loginfo("TurtleBot stopped!")
+
+    def __wait_for_image(self):
+        # Wait for the initial image to be taken
+        while np.sum(self.__subscriptions_ready) < 2:
+            pass
+
+    @staticmethod
+    def __to_precision(number, precision):
+        if precision == 0:
+            return int(number)
+
+        number *= 10. ** precision
+        number = int(number)
+        number /= 10. ** precision
+
+        return number
 
     @staticmethod
     def __get_angle_between(p1, p2):
@@ -60,8 +81,7 @@ class Environment:
 
         return -1
 
-    @staticmethod
-    def __minimize(image):
+    def __minimize(self, image):
         mini_depth = np.zeros((8, 8))
 
         for i in range(0, 8):
@@ -73,16 +93,11 @@ class Environment:
                 mini_depth[i][j] = np.average(temp_array)
 
                 if np.isnan(mini_depth[i][j]):
-                    mini_depth[i][j] = 10.
+                    mini_depth[i][j] = 10
+                else:
+                    mini_depth[i][j] = self.__to_precision(mini_depth[i][j], 2)
 
         return mini_depth
-
-    def __shutdown(self):
-        rospy.loginfo("TurtleBot is stopping..")
-        self.__vel_pub.publish(Twist())
-
-        rospy.sleep(1)
-        rospy.loginfo("TurtleBot stopped!")
 
     def __model_states_callback(self, model_states):
         base_ind = self.__get_index_of(model_states.name, self.__base_name)
@@ -124,7 +139,7 @@ class Environment:
         a, b = p2["x"] - p1["x"], p2["y"] - p1["y"]
         c = math.sqrt(a ** 2 + b ** 2)
 
-        if c < .1:
+        if c < .5:
             self.__terminal = True
 
         return c
@@ -142,30 +157,24 @@ class Environment:
     def get_state(self):
         # S(t) = (distance(t), depth(t), time_passed(t))
 
-        distance = self.__get_distance_between(self.__position, self.__destination) / self.__initial_distance
+        distance = self.__get_distance_between(self.__position, self.__destination)
         depth = self.__minimize(self.__depth_image_raw)
-        time_passed = time.time() - self.__initial_time
+        # time_passed = time.time() - self.__initial_time
 
-        return distance, depth, time_passed
+        return self.__to_precision(distance, 2), depth, 0
 
     def get_reward(self, state):
-        c = [-20, 3, -1]  # coefficients for each state element (distance, depth, time_passed)
+        c = [-10, 1, 0]  # coefficients for each state element (distance, depth, time_passed)
 
         if self.__terminal:
-            return 200
+            return 1000
         elif self.__crashed:
             return -100
 
         reward = sum([state[i] * c[i] for i in range(len(state))])  # 8x8 Reward
-        mini_reward = np.zeros(3)
+        return np.average(reward)
 
-        mini_reward[0] = np.average(reward[:, 0:2])  # LEFT
-        mini_reward[1] = np.average(reward[:, 2:6])  # FORWARD
-        mini_reward[2] = np.average(reward[:, 6:8])  # RIGHT
-
-        return mini_reward  # 1x3 Reward
-
-    def act(self, action, v1=.3, v2=.05, duration=10):
+    def act(self, action, v1=.3, v2=.05):
         vel_cmd = Twist()
 
         if action == 0:  # LEFT
@@ -178,31 +187,19 @@ class Environment:
             vel_cmd.linear.x = v2
             vel_cmd.angular.z = -v1
 
-        for _ in range(duration):
-            if rospy.is_shutdown():
-                return
+        if rospy.is_shutdown():
+            return
 
-            self.__vel_pub.publish(vel_cmd)
-            self.__rate.sleep()
-
-            if self.__destination != self.__initial_destination:
-                self.__terminal = True
-
-            if self.__terminal or self.__crashed:
-                break
+        self.__vel_pub.publish(vel_cmd)
+        self.__rate.sleep()
 
         state = self.get_state()
         reward = self.get_reward(state)
 
         return self.flatten(state), reward, self.__terminal, self.__crashed
 
-    def reset_base(self):
-        rospy.wait_for_service("/gazebo/set_model_state")
-        set_model_state = rospy.ServiceProxy("/gazebo/set_model_state", SetModelState)
-
-        model_state = ModelState()
-        model_state.model_name = self.__base_name
-
+    @staticmethod
+    def __reset_model_state(model_state):
         model_state.pose.position.x = 0.
         model_state.pose.position.y = 0.
         model_state.pose.position.z = 0.
@@ -217,8 +214,22 @@ class Environment:
         model_state.twist.angular.y = 0.
         model_state.twist.angular.z = 0.
 
+    def reset_base(self):
+        rospy.wait_for_service("/gazebo/set_model_state")
+        set_model_state = rospy.ServiceProxy("/gazebo/set_model_state", SetModelState)
+
+        model_state = ModelState()
+        model_state.model_name = self.__base_name
+
+        self.__reset_model_state(model_state)
         set_model_state(model_state)
 
-        self.__initial_time = time.time()
+        self.__terminal = False
         self.__crashed = False
+
+        self.__subscriptions_ready = np.zeros(2)
+        self.__wait_for_image()
+
+        rospy.sleep(1)
+        self.__initial_time = time.time()
 

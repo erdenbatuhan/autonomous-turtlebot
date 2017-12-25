@@ -118,19 +118,26 @@ class Environment:
 
         distance, self.__terminal = util.get_distance_between(self.__position, self.__destination)
         depth = self.__minimize(self.__depth_image_raw)
+        depth = self.modify_depth(depth)
         # time_passed = time.time() - self.__initial_time
 
         distance /= self.__initial_distance  # Get distance as percentage
-        return util.to_precision(distance, 2), util.to_precision(np.average(depth), 1), 0
+        return util.to_precision(distance, 2), depth, 0
+
+    def modify_depth(self, data):
+        depth = [0 if el > 0.75 else el for el in data]
+        depth = -depth[0] + 2*depth[1] + depth[2]
+        return depth
 
     def get_reward(self, state):
-        c = [-10, 1, 0]  # coefficients for each state element (distance, depth, time_passed)
-        reward = [state[i] * c[i] for i in range(len(state))]
+        c = [-10, -150, 0]  # coefficients for each state element (distance, depth, time_passed)
+
+        reward = state[0] * c[0] + state[1] * c[1]
 
         if self.__terminal:
-            reward[0] = 1000
+            reward = 1000
         elif self.__crashed:
-            reward[1] = -100
+            reward = -100
 
         return reward
 

@@ -57,7 +57,8 @@ class Environment:
 
     @staticmethod
     def __minimize(image):
-        mini_depth = np.zeros((8, 8))
+        depth = np.zeros((8, 8), dtype=np.float)
+        mini_depth = np.zeros(3, dtype=np.float)
 
         for i in range(0, 8):
             for j in range(0, 8):
@@ -65,10 +66,14 @@ class Environment:
                 y = j * 80
 
                 temp_array = image[x:x + 60, y:y + 80]
-                mini_depth[i][j] = np.average(temp_array)
+                depth[i][j] = np.average(temp_array)
 
-                if np.isnan(mini_depth[i][j]):
-                    mini_depth[i][j] = 10
+                if np.isnan(depth[i][j]):
+                    depth[i][j] = 10
+
+        mini_depth[0] = util.to_precision(np.average(depth[:, 0:2]), 2)
+        mini_depth[1] = util.to_precision(np.average(depth[:, 2:6]), 2)
+        mini_depth[2] = util.to_precision(np.average(depth[:, 6:8]), 2)
 
         return mini_depth
 
@@ -114,12 +119,13 @@ class Environment:
         distance, self.__terminal = util.get_distance_between(self.__position, self.__destination)
         depth = self.__minimize(self.__depth_image_raw)
         # time_passed = time.time() - self.__initial_time
+        distance = util.to_precision(distance, 2)
 
-        return util.to_precision(distance, 2), util.to_precision(np.average(depth), 1), 0
+        return [distance, distance, distance], depth, 0
 
     def get_reward(self, state):
         # c = [-10, 1, 0]  # coefficients for each state element (distance, depth, time_passed)
-        reward = [(-1) * (state[0] ** 2), state[1]]
+        reward = [(-1) * (np.average(state[0]) ** 2), np.average(state[1])]
 
         if self.__terminal:
             reward[0] = 150

@@ -11,6 +11,10 @@ def plot_learning_curve(distances_per_episode):
     plt.plot(distances_per_episode)
     plt.xlabel("Episode")
     plt.ylabel("Distance to destination")
+
+    properties = str(EPOCH) + "_" + str(MAX_EPISODE_LENGTH)
+    plt.savefig("distances_per_episode_" + properties + ".png")
+
     plt.show()
 
 

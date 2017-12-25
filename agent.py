@@ -14,8 +14,8 @@ class Agent:
     __NUM_ACTIONS = 3
     __BATCH_SIZE = 100
     __MAX_MEMORY = 1000
-    __SAFETY = .5
-    __LEARNING_RATE = .01
+    __SAFETY = .3
+    __LEARNING_RATE = .1
     __DISCOUNT_FACTOR = .95
     __EPSILON = .1
 
@@ -33,12 +33,12 @@ class Agent:
     def __report(step, episode, epoch, loss_greedy, loss_safe, reach_count, state, action):
         message = "Step {} Epoch {:03d}/{:03d} | Loss Greedy {:.2f} | Loss Safe {:.2f} | " \
                   "Reach count {} | Distance {:.2f} | Act {}"
-        print(message.format(step, episode, (epoch - 1), loss_greedy, loss_safe, reach_count, state[0], action))
+        print(message.format(step, episode, (epoch - 1), loss_greedy, loss_safe, reach_count, state[0][0], action))
 
     def __build_model(self):
         model = Sequential()
 
-        model.add(Dense(200, input_shape=(1, ), activation="relu"))
+        model.add(Dense(200, input_shape=(3, ), activation="relu"))
         model.add(Dense(200, activation="relu"))
         model.add(Dense(self.__NUM_ACTIONS, activation="linear"))
         model.compile(Adam(lr=self.__LEARNING_RATE), "mse")
@@ -71,13 +71,12 @@ class Agent:
         Q_safe = self.__predict("safe", state[1])
         Q = np.add(Q_greedy * (1 - self.__SAFETY), Q_safe * self.__SAFETY)
 
-        print("Q:", Q)
         return np.argmax(Q)
 
     def __adapt(self, model_name):
         len_memory = len(self.__memory)
 
-        inputs = np.zeros((min(len_memory, self.__BATCH_SIZE), 1))
+        inputs = np.zeros((min(len_memory, self.__BATCH_SIZE), 3))
         targets = np.zeros((inputs.shape[0], self.__NUM_ACTIONS))
 
         for i, ind in enumerate(np.random.randint(0, len_memory, inputs.shape[0])):
@@ -135,7 +134,9 @@ class Agent:
                 loss_greedy += self.__learn("greedy")
                 loss_safe += self.__learn("safe")
 
-                self.__report(step, episode, epoch, loss_greedy, loss_safe, reach_count, state, action)
+                if step % 20 == 1 or terminal:
+                    self.__report(step, episode, epoch, loss_greedy, loss_safe, reach_count, state, action)
+
                 state = next_state
 
             distance = state[0]

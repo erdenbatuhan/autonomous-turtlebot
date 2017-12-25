@@ -1,5 +1,6 @@
 import time
 import math
+import util
 import rospy
 import numpy as np
 
@@ -13,7 +14,6 @@ from cv_bridge import CvBridge, CvBridgeError
 
 class Environment:
 
-    __STATE_DIM = 1 + 8 * 8 + 1
     __FREQUENCY = 10
 
     def __init__(self, base_name, destination_name):
@@ -40,7 +40,7 @@ class Environment:
 
         self.__wait_for_image()
 
-        self.__initial_distance = self.__get_distance_between(self.__position, self.__destination)
+        self.__initial_distance, _ = util.get_distance_between(self.__position, self.__destination)
         self.__initial_destination = self.__destination
 
     def __shutdown(self):
@@ -56,32 +56,7 @@ class Environment:
             pass
 
     @staticmethod
-    def __to_precision(number, precision):
-        if precision == 0:
-            return int(number)
-
-        number *= 10. ** precision
-        number = int(number)
-        number /= 10. ** precision
-
-        return number
-
-    @staticmethod
-    def __get_angle_between(p1, p2):
-        y = p2["y"] - p1["y"]
-        x = p2["x"] - p1["x"]
-
-        return math.atan2(y, x)
-
-    @staticmethod
-    def __get_index_of(arr, item):
-        for i in range(len(arr)):
-            if arr[i] == item:
-                return i
-
-        return -1
-
-    def __minimize(self, image):
+    def __minimize(image):
         mini_depth = np.zeros((8, 8))
 
         for i in range(0, 8):
@@ -94,14 +69,12 @@ class Environment:
 
                 if np.isnan(mini_depth[i][j]):
                     mini_depth[i][j] = 10
-                else:
-                    mini_depth[i][j] = self.__to_precision(mini_depth[i][j], 2)
 
         return mini_depth
 
     def __model_states_callback(self, model_states):
-        base_ind = self.__get_index_of(model_states.name, self.__base_name)
-        destination_ind = self.__get_index_of(model_states.name, self.__destination_name)
+        base_ind = util.get_index_of(model_states.name, self.__base_name)
+        destination_ind = util.get_index_of(model_states.name, self.__destination_name)
 
         position = model_states.pose[base_ind].position
         destination = model_states.pose[destination_ind].position
@@ -135,44 +108,25 @@ class Environment:
     def __subscribe_bumper_event(self):
         rospy.Subscriber("/mobile_base/events/bumper", BumperEvent, self.__bumper_event_callback)
 
-    def __get_distance_between(self, p1, p2):
-        a, b = p2["x"] - p1["x"], p2["y"] - p1["y"]
-        c = math.sqrt(a ** 2 + b ** 2)
-
-        if c < .5:
-            self.__terminal = True
-
-        return c
-
-    def flatten(self, state):
-        state_flattened = np.zeros(self.__STATE_DIM)
-        last_element = len(state_flattened) - 1
-
-        state_flattened[0] = state[0]
-        state_flattened[1:last_element] = state[1].reshape(1, -1)
-        state_flattened[last_element] = state[2]
-
-        return state_flattened
-
     def get_state(self):
         # S(t) = (distance(t), depth(t), time_passed(t))
 
-        distance = self.__get_distance_between(self.__position, self.__destination)
+        distance, self.__terminal = util.get_distance_between(self.__position, self.__destination)
         depth = self.__minimize(self.__depth_image_raw)
         # time_passed = time.time() - self.__initial_time
 
-        return self.__to_precision(distance, 2), depth, 0
+        return util.to_precision(distance, 3), util.to_precision(np.average(depth), 2), 0
 
     def get_reward(self, state):
-        c = [-10, 1, 0]  # coefficients for each state element (distance, depth, time_passed)
+        # c = [-10, 1, 0]  # coefficients for each state element (distance, depth, time_passed)
+        reward = [1 / state[0], state[1]]
 
         if self.__terminal:
-            return 1000
+            reward[0] = 1000
         elif self.__crashed:
-            return -100
+            reward[1] = -100
 
-        reward = sum([state[i] * c[i] for i in range(len(state))])  # 8x8 Reward
-        return np.average(reward)
+        return reward
 
     def act(self, action, v1=.3, v2=.05):
         vel_cmd = Twist()
@@ -196,7 +150,7 @@ class Environment:
         state = self.get_state()
         reward = self.get_reward(state)
 
-        return self.flatten(state), reward, self.__terminal, self.__crashed
+        return state, reward, self.__terminal, self.__crashed
 
     @staticmethod
     def __reset_model_state(model_state):

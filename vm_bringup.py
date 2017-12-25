@@ -3,7 +3,7 @@ import vm
 
 
 BASE_NAME = "mobile_base"
-DESTINATION_NAME = "unit_sphere_3"
+DESTINATION_NAME = "bowl"
 
 
 def main():
@@ -14,7 +14,7 @@ def main():
     server = vm.VMServer()
     server.listen()
 
-    state = env.flatten(env.get_state())  # Initial state
+    state = env.get_state()  # Initial state
     connector.send_data(state)
     action = server.receive_data()
 
@@ -22,7 +22,7 @@ def main():
         if action == -1:
             env.reset_base()
 
-            state = env.flatten(env.get_state())  # Initial state
+            state = env.get_state()  # Initial state
             connector.send_data(state)
         else:
             next_state, reward, terminal, crashed = env.act(action)

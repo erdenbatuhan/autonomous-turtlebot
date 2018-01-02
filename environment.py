@@ -56,9 +56,9 @@ class Environment:
             pass
 
     @staticmethod
-    def __minimize(image):
+    def __get_depth_minimized(image):
         depth = np.zeros((8, 8), dtype=np.float)
-        mini_depth = np.zeros(3, dtype=np.float)
+        depth_minimized = np.zeros(3, dtype=np.float)
 
         for i in range(0, 8):
             for j in range(0, 8):
@@ -71,11 +71,26 @@ class Environment:
                 if np.isnan(depth[i][j]):
                     depth[i][j] = 10
 
-        mini_depth[0] = util.to_precision(np.average(depth[:, 0:2]), 2)
-        mini_depth[1] = util.to_precision(np.average(depth[:, 2:6]), 2)
-        mini_depth[2] = util.to_precision(np.average(depth[:, 6:8]), 2)
+        depth_minimized[0] = util.to_precision(np.average(depth[:, 0:2]), 2)
+        depth_minimized[1] = util.to_precision(np.average(depth[:, 2:6]), 2)
+        depth_minimized[2] = util.to_precision(np.average(depth[:, 6:8]), 2)
 
-        return mini_depth
+        return depth_minimized
+
+    @staticmethod
+    def __get_depth_modified(depth):
+        coefficients = [-1, 2, 1]
+        depth_modified = []
+
+        for d in depth:
+            if d > .75:
+                depth_modified.append(0)
+            elif d < .1:
+                depth_modified.append(.1)
+            else:
+                depth_modified.append(d)
+
+        return sum([c * d for c, d in zip(coefficients, depth_modified)])
 
     def __model_states_callback(self, model_states):
         base_ind = util.get_index_of(model_states.name, self.__base_name)
@@ -117,27 +132,28 @@ class Environment:
         # S(t) = (distance(t), depth(t), time_passed(t))
 
         distance, self.__terminal = util.get_distance_between(self.__position, self.__destination)
-        depth = self.__minimize(self.__depth_image_raw)
-        depth = self.modify_depth(depth)
+        distance_normalized = distance / self.__initial_distance  # Get distance as percentage
+
+        depth_minimized = self.__get_depth_minimized(self.__depth_image_raw)
+        depth_modified = self.__get_depth_modified(depth_minimized)
+
         # time_passed = time.time() - self.__initial_time
 
-        distance /= self.__initial_distance  # Get distance as percentage
-        return util.to_precision(distance, 2), depth, 0
-
-    def modify_depth(self, data):
-        depth = [0 if el > 0.75 else el for el in data]
-        depth = -depth[0] + 2*depth[1] + depth[2]
-        return depth
+        return util.to_precision(distance_normalized, 2), depth_modified, 0
 
     def get_reward(self, state):
-        c = [-10, -150, 0]  # coefficients for each state element (distance, depth, time_passed)
+        coefficients = [-1, -15, 0]  # coefficients for each state element (distance, depth, time_passed)
+        reward = state[0] * coefficients[0]
 
-        reward = state[0] * c[0] + state[1] * c[1]
+        try:
+            reward = state[0] * coefficients[0] + 1 / state[1] * coefficients[1]
+        except ZeroDivisionError:
+            pass
 
         if self.__terminal:
-            reward = 1000
+            reward = 2000
         elif self.__crashed:
-            reward = -100
+            reward = -400
 
         return reward
 

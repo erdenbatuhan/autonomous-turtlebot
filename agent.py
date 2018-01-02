@@ -56,11 +56,11 @@ class Agent:
         self.__depth_model.save_weights("depth_model.h5", overwrite=True)
 
     def __get_model(self, model_name):
-        return self.__distance_model if model_name == "depth" else self.__depth_model
+        return self.__distance_model if model_name == "distance" else self.__depth_model
 
     def __predict(self, model_name, state):
         model = self.__get_model(model_name)
-        return model.predict(np.array([state]))
+        return model.predict(np.array([state]))[0]
 
     def __get_best_action(self, state):
         if np.random.rand() <= self.__EPSILON:
@@ -74,7 +74,6 @@ class Agent:
             Q_depth = self.__predict("depth", state)
 
         Q = np.add(Q_distance, Q_depth)
-
         return np.argmax(Q)
 
     def __adapt(self, model_name):

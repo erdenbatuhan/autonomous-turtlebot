@@ -3,7 +3,7 @@ from agent import Agent
 import host
 
 
-EPOCH = 100
+EPOCH = 500
 MAX_EPISODE_LENGTH = 500
 
 

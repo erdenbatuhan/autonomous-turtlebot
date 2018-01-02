@@ -55,43 +55,6 @@ class Environment:
         while np.sum(self.__subscriptions_ready) < 2:
             pass
 
-    @staticmethod
-    def __get_depth_minimized(image):
-        depth = np.zeros((8, 8), dtype=np.float)
-        depth_minimized = np.zeros(3, dtype=np.float)
-
-        for i in range(0, 8):
-            for j in range(0, 8):
-                x = i * 60
-                y = j * 80
-
-                temp_array = image[x:x + 60, y:y + 80]
-                depth[i][j] = np.average(temp_array)
-
-                if np.isnan(depth[i][j]):
-                    depth[i][j] = 10
-
-        depth_minimized[0] = util.to_precision(np.average(depth[:, 0:2]), 2)
-        depth_minimized[1] = util.to_precision(np.average(depth[:, 2:6]), 2)
-        depth_minimized[2] = util.to_precision(np.average(depth[:, 6:8]), 2)
-
-        return depth_minimized
-
-    @staticmethod
-    def __get_depth_modified(depth):
-        coefficients = [-1, 2, 1]
-        depth_modified = []
-
-        for d in depth:
-            if d > .75:
-                depth_modified.append(0)
-            elif d < .1:
-                depth_modified.append(.1)
-            else:
-                depth_modified.append(d)
-
-        return sum([c * d for c, d in zip(coefficients, depth_modified)])
-
     def __model_states_callback(self, model_states):
         base_ind = util.get_index_of(model_states.name, self.__base_name)
         destination_ind = util.get_index_of(model_states.name, self.__destination_name)
@@ -117,6 +80,7 @@ class Environment:
         self.__subscriptions_ready[1] = 1
 
     def __bumper_event_callback(self, bumper_event):
+        # TODO: Make CRASH event rely on the depth, not the bumper!
         self.__crashed = True if bumper_event.bumper == 1 else False
 
     def __subscribe_model_states(self):
@@ -128,6 +92,35 @@ class Environment:
     def __subscribe_bumper_event(self):
         rospy.Subscriber("/mobile_base/events/bumper", BumperEvent, self.__bumper_event_callback)
 
+    @staticmethod
+    def __get_depth_minimized(image):
+        depth = np.zeros((8, 8), dtype=np.float)
+        depth_minimized = np.zeros(3, dtype=np.float)
+
+        for i in range(0, 8):
+            for j in range(0, 8):
+                x = i * 60
+                y = j * 80
+
+                temp_array = image[x:x + 60, y:y + 80]
+                depth[i][j] = np.average(temp_array)
+
+                if np.isnan(depth[i][j]):
+                    depth[i][j] = 10
+
+        depth_minimized[0] = util.to_precision(np.average(depth[:, 0:2]), 2)
+        depth_minimized[1] = util.to_precision(np.average(depth[:, 2:6]), 2)
+        depth_minimized[2] = util.to_precision(np.average(depth[:, 6:8]), 2)
+
+        return depth_minimized
+
+    @staticmethod
+    def __get_depth_modified(depth):
+        powers = [1, 1, 1]
+        depth_modified = [3 if d > .75 else d for d in depth]
+
+        return np.average([p * d for p, d in zip(powers, depth_modified)])
+
     def get_state(self):
         # S(t) = (distance(t), depth(t), time_passed(t))
 
@@ -137,38 +130,47 @@ class Environment:
         depth_minimized = self.__get_depth_minimized(self.__depth_image_raw)
         depth_modified = self.__get_depth_modified(depth_minimized)
 
-        # time_passed = time.time() - self.__initial_time
+        time_passed = time.time() - self.__initial_time
+        time_passed = 0.  # TODO: Remove this line when time_passed is back in game
 
-        return util.to_precision(distance_normalized, 2), depth_modified, 0
+        return {
+            "greedy": util.to_precision(distance_normalized, 3),
+            "safe": util.to_precision(depth_modified, 2),
+            "quick": util.to_precision(time_passed, 2)
+        }
+
+    @staticmethod
+    def __get_inverse_safely(value):
+        try:
+            return 1 / value
+        except ZeroDivisionError:
+            return 0
 
     def get_reward(self, state):
-        coefficients = [-1, -15, 0]  # coefficients for each state element (distance, depth, time_passed)
-        reward = state[0] * coefficients[0]
+        powers = {
+            "greedy": 9,
+            "safe": 1,
+            "quick": 1
+        }
 
-        try:
-            reward = state[0] * coefficients[0] + 1 / state[1] * coefficients[1]
-        except ZeroDivisionError:
-            pass
-
-        if self.__terminal:
-            reward = 2000
-        elif self.__crashed:
-            reward = -400
-
-        return reward
+        return {
+            "greedy": 4000 if self.__terminal else powers["greedy"] * 1 / state["greedy"],
+            "safe": -400 if self.__crashed else powers["safe"] * state["safe"],
+            "quick": powers["quick"] * self.__get_inverse_safely(state["quick"])
+        }
 
     def act(self, action, v1=.3, v2=.05):
         vel_cmd = Twist()
 
         if action == 0:  # LEFT
-            vel_cmd.linear.x = v2
-            vel_cmd.angular.z = v1
-        elif action == 1:  # FORWARD
             vel_cmd.linear.x = v1 - v2
+            vel_cmd.angular.z = 2 * v1
+        elif action == 1:  # FORWARD
+            vel_cmd.linear.x = 1.5 * v1 - v2
             vel_cmd.angular.z = 0.
         elif action == 2:  # RIGHT
-            vel_cmd.linear.x = v2
-            vel_cmd.angular.z = -v1
+            vel_cmd.linear.x = v1 - v2
+            vel_cmd.angular.z = -2 * v1
 
         if rospy.is_shutdown():
             return

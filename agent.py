@@ -115,6 +115,9 @@ class Agent:
             state = self.__server.receive_data()
             step, terminal, crashed, loss_greedy, loss_safe = 0, False, False, 0., 0.
 
+            if state is None:
+                return None  # Stop training
+
             while True:
                 step += 1
                 if step > max_episode_length or crashed or terminal:

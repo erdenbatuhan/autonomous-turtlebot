@@ -15,6 +15,13 @@ def main():
     server.listen()
 
     state = env.get_state()  # Initial state
+
+    if state["greedy"] != 1.:
+        print("Expected initial distance (1.), got (%.2f).. Please reset the simulation!!" % state["greedy"])
+
+        connector.send_data(None)  # Stop training
+        return  # Stop simulation
+
     connector.send_data(state)
     action = server.receive_data()
 

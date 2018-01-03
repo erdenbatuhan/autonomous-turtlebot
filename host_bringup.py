@@ -28,7 +28,8 @@ def main():
     agent = Agent(connector=connector, server=server)
     distances_per_episode = agent.train(epoch=EPOCH, max_episode_length=MAX_EPISODE_LENGTH)
 
-    plot_learning_curve(distances_per_episode)
+    if distances_per_episode is not None:
+        plot_learning_curve(distances_per_episode)
 
 
 if __name__ == '__main__':

@@ -16,7 +16,7 @@ class Environment:
 
     __FREQUENCY = 10
 
-    def __init__(self, base_name, destination_name):
+    def __init__(self, base_name, destination):
         rospy.init_node("Environment", anonymous=False)
         rospy.loginfo("CTRL + C to terminate..")
         rospy.on_shutdown(self.__shutdown)
@@ -26,9 +26,8 @@ class Environment:
         self.__bridge = CvBridge()
         self.__initial_time = time.time()
         self.__base_name = base_name
-        self.__destination_name = destination_name
         self.__position = {"x": 0., "y": 0.}
-        self.__destination = {"x": -999., "y": -999.}
+        self.__destination = destination
         self.__depth_image_raw = None
         self.__terminal = False
         self.__crashed = False
@@ -38,7 +37,7 @@ class Environment:
         self.__subscribe_depth_image_raw()
         self.__subscribe_bumper_event()
 
-        self.__wait_for_image()
+        self.__wait_for_subscriptions()
 
         self.__initial_distance, _ = util.get_distance_between(self.__position, self.__destination)
         self.__initial_destination = self.__destination
@@ -50,23 +49,19 @@ class Environment:
         rospy.sleep(1)
         rospy.loginfo("TurtleBot stopped!")
 
-    def __wait_for_image(self):
-        # Wait for the initial image to be taken
+    def __wait_for_subscriptions(self):
         while np.sum(self.__subscriptions_ready) < 2:
             pass
 
     def __model_states_callback(self, model_states):
         base_ind = util.get_index_of(model_states.name, self.__base_name)
-        destination_ind = util.get_index_of(model_states.name, self.__destination_name)
-
         position = model_states.pose[base_ind].position
-        destination = model_states.pose[destination_ind].position
+
+        # destination_ind = util.get_index_of(model_states.name, self.__destination_name)
+        # destination = model_states.pose[destination_ind].position
 
         self.__position["x"] = position.x
         self.__position["y"] = position.y
-
-        self.__destination["x"] = destination.x
-        self.__destination["y"] = destination.y
 
         self.__subscriptions_ready[0] = 1
 
@@ -106,7 +101,7 @@ class Environment:
                 depth[i][j] = np.average(temp_array)
 
                 if np.isnan(depth[i][j]):
-                    depth[i][j] = 10
+                    depth[i][j] = 0
 
         depth_minimized[0] = util.to_precision(np.average(depth[:, 0:2]), 2)
         depth_minimized[1] = util.to_precision(np.average(depth[:, 2:6]), 2)
@@ -117,7 +112,7 @@ class Environment:
     @staticmethod
     def __get_depth_modified(depth):
         powers = [1, 1, 1]
-        depth_modified = [3 if d > .75 else d for d in depth]
+        depth_modified = [10 if d > .75 else d for d in depth]
 
         return np.average([p * d for p, d in zip(powers, depth_modified)])
 
@@ -128,35 +123,24 @@ class Environment:
         distance_normalized = distance / self.__initial_distance  # Get distance as percentage
 
         depth_minimized = self.__get_depth_minimized(self.__depth_image_raw)
-        depth_modified = self.__get_depth_modified(depth_minimized)
+        #depth_modified = self.__get_depth_modified(depth_minimized)
+
+        if np.average(depth_minimized) <= .05:
+            self.__crashed = True
 
         time_passed = time.time() - self.__initial_time
-        time_passed = 0.  # TODO: Remove this line when time_passed is back in game
 
         return {
-            "greedy": util.to_precision(distance_normalized, 3),
-            "safe": util.to_precision(depth_modified, 2),
+            "greedy": util.to_precision(distance_normalized, 4),
+            "safe": util.to_precision(np.average(depth_minimized), 4),
             "quick": util.to_precision(time_passed, 2)
         }
 
-    @staticmethod
-    def __get_inverse_safely(value):
-        try:
-            return 1 / value
-        except ZeroDivisionError:
-            return 0
-
     def get_reward(self, state):
-        powers = {
-            "greedy": 9,
-            "safe": 1,
-            "quick": 1
-        }
-
         return {
-            "greedy": 4000 if self.__terminal else powers["greedy"] * 1 / state["greedy"],
-            "safe": -400 if self.__crashed else powers["safe"] * state["safe"],
-            "quick": powers["quick"] * self.__get_inverse_safely(state["quick"])
+            "greedy": 5000 if self.__terminal else 2 / state["greedy"],
+            "safe": -250 if self.__crashed else 0,
+            "quick": -state["quick"]
         }
 
     def act(self, action, v1=.3, v2=.05):
@@ -209,12 +193,13 @@ class Environment:
         self.__reset_model_state(model_state)
         set_model_state(model_state)
 
+        self.__shutdown()
+
         self.__terminal = False
         self.__crashed = False
 
         self.__subscriptions_ready = np.zeros(2)
-        self.__wait_for_image()
+        self.__wait_for_subscriptions()
 
-        rospy.sleep(1)
         self.__initial_time = time.time()
 

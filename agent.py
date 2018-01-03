@@ -12,10 +12,10 @@ from keras.optimizers import Adam
 class Agent:
 
     __BATCH_SIZE = 250
-    __MAX_MEMORY = 2500
-    __LEARNING_RATE = .01
-    __DISCOUNT_FACTOR = .95
-    __EPSILON = .2
+    __MAX_MEMORY = 25000
+    __LEARNING_RATE = .1
+    __DISCOUNT_FACTOR = .99
+    __EPSILON = .1
 
     def __init__(self, connector, server):
         self.__connector = connector
@@ -30,13 +30,14 @@ class Agent:
     @staticmethod
     def __report(step, episode, epoch, loss_greedy, loss_safe, reach_count, state, action):
         message = "Step {} Epoch {:03d}/{:03d} | Loss Greedy {:.2f} | Loss Safe {:.2f} | " \
-                  "Reach count {} | State [{:.3f}, {:.2f}, {:.2f}] | Act {}"
+                  "Reach count {} | State {} | Act {}"
         print(message.format(step, episode, (epoch - 1), loss_greedy, loss_safe,
-                             reach_count, state["greedy"], state["safe"], state["quick"], action))
+                             reach_count, state, action))
 
     def __build_model(self):
         model = Sequential()
 
+        model.add(Dense(200, input_shape=(1, ), activation="relu"))
         model.add(Dense(200, input_shape=(1, ), activation="relu"))
         model.add(Dense(3, activation="linear"))
         model.compile(Adam(lr=self.__LEARNING_RATE), "mse")
@@ -69,9 +70,8 @@ class Agent:
         if np.random.rand() <= self.__EPSILON:
             return np.random.randint(0, 3, size=1)[0]
 
-        # Only use depth model when there is a risk of collision, 3 means collision-free
         greedy_actions = self.__predict("greedy", state)
-        safe_actions = self.__predict("safe", state) if state["safe"] != 3 else np.zeros(3)
+        safe_actions = self.__predict("safe", state)
 
         actions = np.add(greedy_actions, safe_actions)
         return np.argmax(actions)
@@ -115,13 +115,12 @@ class Agent:
             state = self.__server.receive_data()
             step, terminal, crashed, loss_greedy, loss_safe = 0, False, False, 0., 0.
 
-            if state is None:
-                return None  # Stop training
-
             while True:
                 step += 1
                 if step > max_episode_length or crashed or terminal:
+                    print("Episode {}'s Report -> State {} | Crashed {} | Terminal {}".format(episode, state, crashed, terminal))
                     self.__connector.send_data(-1)  # Reset base
+
                     break
 
                 action = self.__get_next_action(state)
@@ -137,9 +136,7 @@ class Agent:
                 loss_greedy += self.__learn("greedy")
                 loss_safe += self.__learn("safe")
 
-                if step % 20 == 1 or step > 0 or terminal:  # TODO: Remove 'step > 0' after testing
-                    self.__report(step, episode, epoch, loss_greedy, loss_safe, reach_count, state, action)
-
+                self.__report(step, episode, epoch, loss_greedy, loss_safe, reach_count, state, action)
                 state = next_state
 
             distance = state["greedy"]

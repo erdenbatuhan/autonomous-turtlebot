@@ -1,26 +1,25 @@
 from environment import Environment
+import util
 import vm
 
 
 BASE_NAME = "mobile_base"
-DESTINATION_NAME = "bowl"
+DESTINATION = {"x": 4.93, "y": 1.00}
 
 
 def main():
-    env = Environment(base_name=BASE_NAME, destination_name=DESTINATION_NAME)
+    env = Environment(base_name=BASE_NAME, destination=DESTINATION)
     env.reset_base()
-
-    connector = vm.VMConnector()
-    server = vm.VMServer()
-    server.listen()
 
     state = env.get_state()  # Initial state
 
     if state["greedy"] != 1.:
-        print("Expected initial distance (1.), got (%.2f).. Please reset the simulation!!" % state["greedy"])
+        print("Expected initial distance (1.), got (%f). Re-running the simulation.." % state["greedy"])
+        return main()  # Stop simulation
 
-        connector.send_data(None)  # Stop training
-        return  # Stop simulation
+    connector = vm.VMConnector()
+    server = vm.VMServer()
+    server.listen()
 
     connector.send_data(state)
     action = server.receive_data()
@@ -36,6 +35,8 @@ def main():
             connector.send_data((next_state, reward, terminal, crashed))
 
         action = server.receive_data()
+
+    return None
 
 
 if __name__ == '__main__':

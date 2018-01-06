@@ -9,8 +9,8 @@ from keras.optimizers import Adam
 
 class Agent:
 
-    __BATCH_SIZE = 32
-    __MAX_MEMORY = 20000
+    __BATCH_SIZE = 50
+    __MAX_MEMORY = 1000
     __HIDDEN_SIZE = 96
     __INPUT_SIZE = 5
     __LEARNING_RATE = .01
@@ -87,13 +87,14 @@ class Agent:
         reach_count = 0
         results = {
             "distance_per_episode": [],
+            "cumulative_reward_per_episode": [],
             "steps_per_episode": [],
             "reach_counts": []
         }
 
         for episode in range(epoch):
             state = self.__server.receive_data()
-            step, loss, terminal, crashed = 0, 0., False, False
+            step, loss, cumulative_reward, terminal, crashed = 0, 0., 0., False, False
 
             while True:
                 step += 1
@@ -108,6 +109,7 @@ class Agent:
                 self.__connector.send_data(int(action))
 
                 next_state, reward, terminal, crashed = self.__server.receive_data()
+                cumulative_reward += reward
 
                 if terminal:
                     reach_count += 1
@@ -123,11 +125,13 @@ class Agent:
             distance = util.c(state[0], state[1])
 
             results["distance_per_episode"].append(distance)
+            results["cumulative_reward_per_episode"].append(cumulative_reward)
             results["steps_per_episode"].append(step - 1)
             results["reach_counts"].append(reach_count)
 
             if reach_count % 2 == 1:
                 self.__save_model()
+                self.__memory.save_memory()
 
         _ = self.__server.receive_data()
         self.__connector.send_data(-2)  # Stop simulation

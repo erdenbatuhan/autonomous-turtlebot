@@ -38,9 +38,7 @@ class Environment:
         self.__subscribe_bumper_event()
 
         self.__wait_for_subscriptions()
-
-        _, self.__initial_distance, _ = util.get_distance_between(self.__position, self.__destination)
-        self.__initial_destination = self.__destination
+        _, self.initial_distance, _ = util.get_distance_between(self.__position, self.__destination)
 
     def __shutdown(self):
         rospy.loginfo("TurtleBot is stopping..")
@@ -104,9 +102,9 @@ class Environment:
                 if np.isnan(depth[i][j]):
                     depth[i][j] = 0
 
-        depth_minimized[0] = util.to_precision(np.average(depth[:, 0:2]), 4)
-        depth_minimized[1] = util.to_precision(np.average(depth[:, 2:6]), 4)
-        depth_minimized[2] = util.to_precision(np.average(depth[:, 6:8]), 4)
+        depth_minimized[0] = util.to_precision(np.average(depth[:, 0:2]), 2)
+        depth_minimized[1] = util.to_precision(np.average(depth[:, 2:6]), 2)
+        depth_minimized[2] = util.to_precision(np.average(depth[:, 6:8]), 2)
 
         return depth_minimized
 
@@ -125,7 +123,6 @@ class Environment:
         depth = self.__get_depth_minimized(self.__depth_image_raw)
 
         # distance = distance / self.__initial_distance  # Get distance as percentage
-        distance = map(util.to_precision, distance, len(distance) * [4])
 
         if np.min(depth) <= .05:
             self.__crashed = True
@@ -139,11 +136,11 @@ class Environment:
         c = util.c(state[0], state[1])
 
         if self.__terminal:
-            reward = 2000
+            reward = 1000
         elif self.__crashed:
-            reward = -5 * c if c / self.__initial_distance <= 1. else -50 * c
+            reward = -5 * c if c / self.initial_distance <= 1. else -50 * c
         else:
-            reward = -1 * c if c / self.__initial_distance <= 1. else -10 * c
+            reward = -1 * c if c / self.initial_distance <= 1. else -10 * c
 
         print("State & Reward: ", state, reward)
         return reward
@@ -152,13 +149,13 @@ class Environment:
         vel_cmd = Twist()
 
         if action == 0:  # LEFT
-            vel_cmd.linear.x = v1 - v2
+            vel_cmd.linear.x = 1.5 * v1 - v2
             vel_cmd.angular.z = 2 * v1
         elif action == 1:  # FORWARD
-            vel_cmd.linear.x = 2 * v1 - v2
+            vel_cmd.linear.x = 3 * v1 - v2
             vel_cmd.angular.z = 0.
         elif action == 2:  # RIGHT
-            vel_cmd.linear.x = v1 - v2
+            vel_cmd.linear.x = 1.5 * v1 - v2
             vel_cmd.angular.z = -2 * v1
 
         if rospy.is_shutdown():

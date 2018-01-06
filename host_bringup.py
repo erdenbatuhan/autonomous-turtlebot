@@ -3,15 +3,16 @@ from matplotlib import pyplot as plt
 from agent import Agent
 
 
-EPOCH = 500
-MAX_EPISODE_LENGTH = 500
+EPOCH = 100
+MAX_EPISODE_LENGTH = 200
 
 
 def plot_results(results):
     result_types = {
-        "distance_per_episode": "Distance to destination",
-        "steps_per_episode": "Number of steps",
-        "reach_counts": "Reach count"
+        "distance_per_episode": "Distance to Destination",
+        "cumulative_reward_per_episode": "Cumulative Reward",
+        "steps_per_episode": "Number of Steps",
+        "reach_counts": "Reach Count"
     }
 
     for result_type in results.keys():

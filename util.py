@@ -2,7 +2,7 @@ import math
 import numpy as np
 
 
-c = lambda a, b: math.sqrt(a ** 2 + b ** 2)
+c = lambda a, b: to_precision(math.sqrt(a ** 2 + b ** 2), 2)
 
 
 def get_index_of(arr, item):
@@ -40,7 +40,7 @@ def get_distance_between(p1, p2):
     if c < .5:
         terminal = True
 
-    return [a, b], c, terminal
+    return [to_precision(a, 2), to_precision(b, 2)], to_precision(c, 2), terminal
 
 
 def flatten(state, state_dim):

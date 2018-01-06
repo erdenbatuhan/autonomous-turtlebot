@@ -1,9 +1,10 @@
 import vm
+import util
 from environment import Environment
 
 
 BASE_NAME = "mobile_base"
-DESTINATION = {"x": 3.0000, "y": 1.4254}
+DESTINATION = {"x": 3., "y": 1.}
 
 
 def main():
@@ -11,6 +12,13 @@ def main():
     env.reset_base()
 
     state = env.get_state()  # Initial state
+
+    c = util.c(state[0], state[1])
+    error_rate = util.to_precision(1. - c / env.initial_distance, 2)
+
+    if error_rate != 0:
+        print("Expected initial distance (1.), got (%f). Re-running the simulation.." % (1. - error_rate))
+        return main()  # Stop simulation
 
     connector = vm.VMConnector()
     server = vm.VMServer()

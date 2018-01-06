@@ -2,6 +2,9 @@ import math
 import numpy as np
 
 
+c = lambda a, b: math.sqrt(a ** 2 + b ** 2)
+
+
 def get_index_of(arr, item):
     for i in range(len(arr)):
         if arr[i] == item:
@@ -37,7 +40,7 @@ def get_distance_between(p1, p2):
     if c < .5:
         terminal = True
 
-    return c, terminal
+    return [a, b], c, terminal
 
 
 def flatten(state, state_dim):

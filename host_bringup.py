@@ -1,21 +1,29 @@
+import host
 from matplotlib import pyplot as plt
 from agent import Agent
-import host
 
 
 EPOCH = 500
 MAX_EPISODE_LENGTH = 500
 
 
-def plot_learning_curve(distances_per_episode):
-    plt.plot(distances_per_episode)
-    plt.xlabel("Episode")
-    plt.ylabel("Distance to destination")
+def plot_results(results):
+    result_types = {
+        "distance_per_episode": "Distance to destination",
+        "steps_per_episode": "Number of steps",
+        "reach_counts": "Reach count"
+    }
 
-    properties = str(EPOCH) + "_" + str(MAX_EPISODE_LENGTH)
-    plt.savefig("distances_per_episode_" + properties + ".png")
+    for result_type in results.keys():
+        result = results[result_type]
 
-    plt.show()
+        plt.xlabel("Episode")
+        plt.ylabel(result_types[result_type])
+
+        plt.plot(result)
+        plt.savefig("./results/" + result_type + "_" + str(EPOCH) + "_" + str(MAX_EPISODE_LENGTH) + ".png")
+
+        plt.gcf().clear()
 
 
 def main():
@@ -26,10 +34,9 @@ def main():
     print("Listening vm.")
 
     agent = Agent(connector=connector, server=server)
-    distances_per_episode = agent.train(epoch=EPOCH, max_episode_length=MAX_EPISODE_LENGTH)
+    results = agent.train(epoch=EPOCH, max_episode_length=MAX_EPISODE_LENGTH)
 
-    if distances_per_episode is not None:
-        plot_learning_curve(distances_per_episode)
+    plot_results(results=results)
 
 
 if __name__ == '__main__':

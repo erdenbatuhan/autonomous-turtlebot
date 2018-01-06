@@ -1,10 +1,9 @@
-from environment import Environment
-import util
 import vm
+from environment import Environment
 
 
 BASE_NAME = "mobile_base"
-DESTINATION = {"x": 4.93, "y": 1.00}
+DESTINATION = {"x": 3.0000, "y": 1.4254}
 
 
 def main():
@@ -12,10 +11,6 @@ def main():
     env.reset_base()
 
     state = env.get_state()  # Initial state
-
-    if state["greedy"] != 1.:
-        print("Expected initial distance (1.), got (%f). Re-running the simulation.." % state["greedy"])
-        return main()  # Stop simulation
 
     connector = vm.VMConnector()
     server = vm.VMServer()
@@ -35,8 +30,6 @@ def main():
             connector.send_data((next_state, reward, terminal, crashed))
 
         action = server.receive_data()
-
-    return None
 
 
 if __name__ == '__main__':

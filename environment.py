@@ -39,7 +39,7 @@ class Environment:
 
         self.__wait_for_subscriptions()
 
-        self.__initial_distance, _ = util.get_distance_between(self.__position, self.__destination)
+        _, self.__initial_distance, _ = util.get_distance_between(self.__position, self.__destination)
         self.__initial_destination = self.__destination
 
     def __shutdown(self):
@@ -76,7 +76,8 @@ class Environment:
 
     def __bumper_event_callback(self, bumper_event):
         # TODO: Make CRASH event rely on the depth, not the bumper!
-        self.__crashed = True if bumper_event.bumper == 1 else False
+        # self.__crashed = True if bumper_event.bumper == 1 else False
+        pass
 
     def __subscribe_model_states(self):
         rospy.Subscriber("/gazebo/model_states", ModelStates, self.__model_states_callback)
@@ -103,9 +104,9 @@ class Environment:
                 if np.isnan(depth[i][j]):
                     depth[i][j] = 0
 
-        depth_minimized[0] = util.to_precision(np.average(depth[:, 0:2]), 2)
-        depth_minimized[1] = util.to_precision(np.average(depth[:, 2:6]), 2)
-        depth_minimized[2] = util.to_precision(np.average(depth[:, 6:8]), 2)
+        depth_minimized[0] = util.to_precision(np.average(depth[:, 0:2]), 4)
+        depth_minimized[1] = util.to_precision(np.average(depth[:, 2:6]), 4)
+        depth_minimized[2] = util.to_precision(np.average(depth[:, 6:8]), 4)
 
         return depth_minimized
 
@@ -117,31 +118,35 @@ class Environment:
         return np.average([p * d for p, d in zip(powers, depth_modified)])
 
     def get_state(self):
-        # S(t) = (distance(t), depth(t), time_passed(t))
+        # S(t) = (distance(t), depth(t))
+        state = []
 
-        distance, self.__terminal = util.get_distance_between(self.__position, self.__destination)
-        distance_normalized = distance / self.__initial_distance  # Get distance as percentage
+        distance, _, self.__terminal = util.get_distance_between(self.__position, self.__destination)
+        depth = self.__get_depth_minimized(self.__depth_image_raw)
 
-        depth_minimized = self.__get_depth_minimized(self.__depth_image_raw)
-        #depth_modified = self.__get_depth_modified(depth_minimized)
+        # distance = distance / self.__initial_distance  # Get distance as percentage
+        distance = map(util.to_precision, distance, len(distance) * [4])
 
-        if np.average(depth_minimized) <= .05:
+        if np.min(depth) <= .05:
             self.__crashed = True
 
-        time_passed = time.time() - self.__initial_time
+        [state.append(el) for el in distance]
+        [state.append(el) for el in depth]
 
-        return {
-            "greedy": util.to_precision(distance_normalized, 4),
-            "safe": util.to_precision(np.average(depth_minimized), 4),
-            "quick": util.to_precision(time_passed, 2)
-        }
+        return state
 
     def get_reward(self, state):
-        return {
-            "greedy": 5000 if self.__terminal else 2 / state["greedy"],
-            "safe": -250 if self.__crashed else 0,
-            "quick": -state["quick"]
-        }
+        c = util.c(state[0], state[1])
+
+        if self.__terminal:
+            reward = 2000
+        elif self.__crashed:
+            reward = -5 * c if c / self.__initial_distance <= 1. else -50 * c
+        else:
+            reward = -1 * c if c / self.__initial_distance <= 1. else -10 * c
+
+        print("State & Reward: ", state, reward)
+        return reward
 
     def act(self, action, v1=.3, v2=.05):
         vel_cmd = Twist()
@@ -150,7 +155,7 @@ class Environment:
             vel_cmd.linear.x = v1 - v2
             vel_cmd.angular.z = 2 * v1
         elif action == 1:  # FORWARD
-            vel_cmd.linear.x = 1.5 * v1 - v2
+            vel_cmd.linear.x = 2 * v1 - v2
             vel_cmd.angular.z = 0.
         elif action == 2:  # RIGHT
             vel_cmd.linear.x = v1 - v2

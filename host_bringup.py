@@ -3,8 +3,8 @@ from matplotlib import pyplot as plt
 from agent import Agent
 
 
-EPOCH = 250
-MAX_EPISODE_LENGTH = 200
+EPOCH = 5000
+MAX_EPISODE_LENGTH = 500
 
 
 def plot_results(results):

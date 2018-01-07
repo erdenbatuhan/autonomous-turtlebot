@@ -170,7 +170,7 @@ class Agent:
                 self.__report(step, episode, epoch, loss_greedy, loss_safe, reach_count, state, action)
                 state = next_state
 
-            distance = state["greedy"][0]
+            distance = state["greedy"][0][0]
 
             results["distance_per_episode"].append(distance)
             results["cumulative_reward_per_episode"].append(cumulative_reward)

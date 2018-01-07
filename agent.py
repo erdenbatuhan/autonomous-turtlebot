@@ -31,7 +31,7 @@ class Agent:
             "safe": ((self.__build_model(input_size=3, num_layers=3), self.__build_model(input_size=3, num_layers=3)),
                      3,  Memory(max_memory=self.__MAX_MEMORY), .9),
         }
-        self.__safe_model_usable = lambda step, state: step > 10 and np.min(state["safe"][0]) < 5.
+        self.__safe_model_usable = lambda step, state: step > 10 and np.min(state["safe"][0]) < .75
 
     def __report(self, step, episode, epoch, loss_greedy, loss_safe, reach_count, state, action):
         message = "Step {} Epoch {:03d}/{:03d} | Epsilon {:.4f} | " \

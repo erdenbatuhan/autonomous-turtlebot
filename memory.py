@@ -9,10 +9,13 @@ class Memory:
         self.__len_memory = 0
         self.__max_memory = max_memory
 
-        self.__load_memory()
+        # self.__load_memory()
 
     def __len__(self):
         return self.__len_memory
+
+    def get(self):
+        return self.__memory
 
     def __load_memory(self):
         try:
@@ -36,8 +39,8 @@ class Memory:
         with open("memory.pkl", "wb") as memory_writer:
             pickle.dump(self.__memory, memory_writer)
 
-    def get_experience(self, i, j):
-        return self.__memory[i][j]
+    def get_experience(self, i):
+        return self.__memory[i]
 
     def remember_experience(self, experience):
         self.__memory.append(experience)

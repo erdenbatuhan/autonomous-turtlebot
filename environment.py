@@ -8,7 +8,6 @@ from gazebo_msgs.srv import SetModelState
 from gazebo_msgs.msg import ModelState, ModelStates
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Image
-from kobuki_msgs.msg import BumperEvent
 from cv_bridge import CvBridge, CvBridgeError
 
 
@@ -35,10 +34,9 @@ class Environment:
         self.__subscriptions_ready = np.zeros(2)
         self.__subscribe_model_states()
         self.__subscribe_depth_image_raw()
-        self.__subscribe_bumper_event()
 
         self.__wait_for_subscriptions()
-        _, self.initial_distance, _ = util.get_distance_between(self.__position, self.__destination)
+        self.__initial_distance, _, _ = util.get_distance_between(self.__position, self.__destination)
 
     def __shutdown(self):
         rospy.loginfo("TurtleBot is stopping..")
@@ -72,19 +70,11 @@ class Environment:
         self.__depth_image_raw = np.array(self.__depth_image_raw, dtype=np.float32)
         self.__subscriptions_ready[1] = 1
 
-    def __bumper_event_callback(self, bumper_event):
-        # TODO: Make CRASH event rely on the depth, not the bumper!
-        # self.__crashed = True if bumper_event.bumper == 1 else False
-        pass
-
     def __subscribe_model_states(self):
         rospy.Subscriber("/gazebo/model_states", ModelStates, self.__model_states_callback)
 
     def __subscribe_depth_image_raw(self):
         rospy.Subscriber("/camera/depth/image_raw", Image, self.__depth_image_raw_callback)
-
-    def __subscribe_bumper_event(self):
-        rospy.Subscriber("/mobile_base/events/bumper", BumperEvent, self.__bumper_event_callback)
 
     @staticmethod
     def __get_depth_minimized(image):
@@ -99,63 +89,70 @@ class Environment:
                 temp_array = image[x:x + 60, y:y + 80]
                 depth[i][j] = np.average(temp_array)
 
-                if np.isnan(depth[i][j]):
+                if np.isnan(depth[i][j]) or (not -100. < depth[i][j] < 100.):
                     depth[i][j] = 0
 
-        depth_minimized[0] = util.to_precision(np.average(depth[:, 0:2]), 2)
-        depth_minimized[1] = util.to_precision(np.average(depth[:, 2:6]), 2)
-        depth_minimized[2] = util.to_precision(np.average(depth[:, 6:8]), 2)
+        try:
+            depth_minimized[0] = util.to_precision(np.average(depth[:, 0:2]), 2)
+            depth_minimized[1] = util.to_precision(np.average(depth[:, 2:6]), 2)
+            depth_minimized[2] = util.to_precision(np.average(depth[:, 6:8]), 2)
+        except OverflowError:
+            depth_minimized = np.zeros(3, dtype=np.float)
 
         return depth_minimized
 
     @staticmethod
     def __get_depth_modified(depth):
+        count_special = sum([1 if d == .12 else 0 for d in depth])
+        if count_special == 1:
+            depth = [10. if d == .12 else d for d in depth]
+
         powers = [1, 1, 1]
         depth_modified = [10 if d > .75 else d for d in depth]
 
-        return np.average([p * d for p, d in zip(powers, depth_modified)])
+        return [p * d for p, d in zip(powers, depth_modified)]
 
     def get_state(self):
         # S(t) = (distance(t), depth(t))
-        state = []
-
         distance, _, self.__terminal = util.get_distance_between(self.__position, self.__destination)
         depth = self.__get_depth_minimized(self.__depth_image_raw)
 
-        # distance = distance / self.__initial_distance  # Get distance as percentage
+        # Get distance as percentage
+        for i in range(len(distance)):
+            distance[i] /= self.__initial_distance[i]
 
+        # Get depth modified
+        depth = self.__get_depth_modified(depth)
+
+        # Check if crashed
         if np.min(depth) <= .05:
             self.__crashed = True
 
-        [state.append(el) for el in distance]
-        [state.append(el) for el in depth]
-
-        return state
+        return {
+            "greedy": np.array(util.to_precision_all(distance, 2)).reshape((1, -1)),
+            "safe": np.array(util.to_precision_all(depth, 2)).reshape((1, -1))
+        }
 
     def get_reward(self, state):
-        c = util.c(state[0], state[1])
+        # c is a value between (0, 1]
+        av = np.average(state["safe"])
 
-        if self.__terminal:
-            reward = 1000
-        elif self.__crashed:
-            reward = -5 * c if c / self.initial_distance <= 1. else -50 * c
-        else:
-            reward = -1 * c if c / self.initial_distance <= 1. else -10 * c
-
-        print("State & Reward: ", state, reward)
-        return reward
+        return {
+            "greedy": 1000 if self.__terminal else 0,
+            "safe": -100 if self.__crashed else 0
+        }
 
     def act(self, action, v1=.3, v2=.05):
         vel_cmd = Twist()
 
         if action == 0:  # LEFT
-            vel_cmd.linear.x = 1.5 * v1 - v2
+            vel_cmd.linear.x = v1 - v2
             vel_cmd.angular.z = 2 * v1
         elif action == 1:  # FORWARD
-            vel_cmd.linear.x = 3 * v1 - v2
+            vel_cmd.linear.x = 3 * (v1 - v2)
             vel_cmd.angular.z = 0.
         elif action == 2:  # RIGHT
-            vel_cmd.linear.x = 1.5 * v1 - v2
+            vel_cmd.linear.x = v1 - v2
             vel_cmd.angular.z = -2 * v1
 
         if rospy.is_shutdown():

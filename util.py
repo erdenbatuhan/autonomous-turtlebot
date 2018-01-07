@@ -3,6 +3,8 @@ import numpy as np
 
 
 c = lambda a, b: to_precision(math.sqrt(a ** 2 + b ** 2), 2)
+to_precision_all = lambda arr, precision: [to_precision(el, precision) for el in arr]
+normalized = lambda arr: [float(i) / sum(arr) for i in arr]
 
 
 def get_index_of(arr, item):

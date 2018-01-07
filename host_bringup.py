@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 from agent import Agent
 
 
-EPOCH = 100
+EPOCH = 250
 MAX_EPISODE_LENGTH = 200
 
 

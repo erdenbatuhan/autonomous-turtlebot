@@ -1,5 +1,4 @@
 import vm
-import util
 from environment import Environment
 
 
@@ -13,11 +12,9 @@ def main():
 
     state = env.get_state()  # Initial state
 
-    c = util.c(state[0], state[1])
-    error_rate = util.to_precision(1. - c / env.initial_distance, 2)
-
-    if error_rate != 0:
-        print("Expected initial distance (1.), got (%f). Re-running the simulation.." % (1. - error_rate))
+    if state["greedy"][0][0] != 1. or state["greedy"][0][1] != 1:
+        print("Expected initial distance (1., 1.), got {}. Re-running the simulation..".
+              format((state["greedy"][0][0], state["greedy"][0][1])))
         return main()  # Stop simulation
 
     connector = vm.VMConnector()

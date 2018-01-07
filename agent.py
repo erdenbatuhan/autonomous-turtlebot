@@ -1,88 +1,141 @@
 import util
 import numpy as np
+from random import random
 from memory import Memory
 
 from keras.models import Sequential
-from keras.layers.core import Dense
-from keras.optimizers import Adam
+from keras.layers.core import Dense, Dropout
+from keras.optimizers import Adam, RMSprop
+from keras.layers.advanced_activations import LeakyReLU
+from keras.regularizers import l2
 
 
 class Agent:
 
-    __BATCH_SIZE = 50
-    __MAX_MEMORY = 1000
-    __HIDDEN_SIZE = 96
-    __INPUT_SIZE = 5
-    __LEARNING_RATE = .01
-    __DISCOUNT_FACTOR = .99
-    __EPSILON = .1
+    __BATCH_SIZE = 32
+    __MAX_MEMORY = 1024
+    __HIDDEN_SIZE = 192
+    __REGULARIZATION_FACTOR = .01
+    __LEARNING_RATE = .1
+    __DISCOUNT_FACTOR = .9
+    __EXPLORATION_RATE = .999  # Closer to 1 means more exploration.
 
     def __init__(self, connector, server):
         self.__connector = connector
         self.__server = server
 
-        self.__memory = Memory(max_memory=self.__MAX_MEMORY)
-        self.__model = self.__build_model()
+        self.__epsilon = 1.
+        self.__epsilon_min = .2
 
-    @staticmethod
-    def __report(step, episode, epoch, loss, reach_count, state, action):
-        message = "Step {} Epoch {:03d}/{:03d} | Loss {:.2f} | Reach count {} | State {} | Act {}"
-        print(message.format(step, episode, (epoch - 1), loss, reach_count, state, action))
+        self.__models = {
+            "greedy": ((self.__build_model(input_size=2), self.__build_model(input_size=2)), 2,
+                       Memory(max_memory=self.__MAX_MEMORY)),
+            "safe": ((self.__build_model(input_size=3), self.__build_model(input_size=3)), 3,
+                     Memory(max_memory=self.__MAX_MEMORY)),
+        }
+        self.__safe_model_usable = lambda state: np.average(state["safe"][0]) <= .5
 
-    def __build_model(self):
+    def __report(self, step, episode, epoch, loss_greedy, loss_safe, reach_count, state, action):
+        message = "Step {} Epoch {:03d}/{:03d} | Epsilon {:.4f} | " \
+                  "Loss Greedy {:.2f} | Loss Safe {:.2f} | Reach count {} | State {} | Act {}"
+        print(message.format(step, episode, (epoch - 1), self.__epsilon,
+                             loss_greedy, loss_safe, reach_count, state, action))
+
+    def __build_model(self, input_size):
         model = Sequential()
 
-        model.add(Dense(self.__HIDDEN_SIZE, input_shape=(self.__INPUT_SIZE, ), activation="relu"))
-        model.add(Dense(self.__HIDDEN_SIZE, input_shape=(self.__INPUT_SIZE, ), activation="relu"))
-        model.add(Dense(3, activation="linear"))
-        model.compile(optimizer=Adam(lr=self.__LEARNING_RATE), loss="mse")
+        # 1st Layer
+        model.add(Dense(self.__HIDDEN_SIZE, input_shape=(input_size, ),
+                        kernel_initializer='lecun_uniform', kernel_regularizer=l2(self.__REGULARIZATION_FACTOR),
+                        use_bias=True))
+        model.add(LeakyReLU(alpha=0.01))
+
+        # 2nd, 3rd and 4th Layers
+        for i in range(3):
+            model.add(Dense(int(self.__HIDDEN_SIZE / 2),
+                            kernel_initializer='lecun_uniform', kernel_regularizer=l2(self.__REGULARIZATION_FACTOR),
+                            use_bias=True))
+            model.add(LeakyReLU(alpha=0.01))
+
+        # Output Layers
+        model.add(Dropout(.3))
+
+        '''
+        model.add(Dense(self.__HIDDEN_SIZE, input_shape=(input_size, )))
+        model.add(LeakyReLU(alpha=0.01))
+        model.add(Dense(self.__HIDDEN_SIZE))
+        model.add(LeakyReLU(alpha=0.01))
+        '''
+        model.add(Dense(3, kernel_initializer='lecun_uniform', activation="linear", use_bias=True))
+
+        optimizer = Adam(lr=self.__LEARNING_RATE)
+        model.compile(optimizer=optimizer, loss="mse")
 
         return model
 
-    def __load_model(self):
+    def __load_models(self):
         try:
-            self.__model.load_weights("model.h5")
+            self.__models["greedy"][0][0].load_weights("greedy.h5")
+            self.__models["safe"][0][0].load_weights("safe.h5")
+
+            self.__epsilon = self.__epsilon_min  # No exploration!
         except OSError:
             print("No pre-saved model found.")
 
-    def __save_model(self):
-        self.__model.save_weights("model.h5", overwrite=True)
+    def __save_models(self):
+        self.__models["greedy"][0][0].save_weights("greedy.h5", overwrite=True)
+        self.__models["safe"][0][0].save_weights("safe.h5", overwrite=True)
 
-    def __predict(self, state):
-        return np.array(self.__model.predict(np.array([state]))[0])
-
-    def __get_next_action(self, state):
-        if np.random.rand() <= self.__EPSILON:
+    def __get_next_action(self, step, state):
+        if np.random.rand() <= self.__epsilon:
             return np.random.randint(0, 3, size=1)[0]
 
-        actions = self.__predict(state)
-        return np.argmax(actions)
+        # Double Q-Learning Algorithm
+        greedy_actions = np.average([self.__models["greedy"][0][i].predict(state["greedy"])[0] for i in range(2)],
+                                    axis=0)
+        safe_actions = np.zeros(3, dtype=float)
 
-    def __adapt(self):
-        len_memory = len(self.__memory)
+        if step > 10 and self.__safe_model_usable(state):
+            safe_actions = np.average([self.__models["safe"][0][i].predict(state["safe"])[0] for i in range(2)],
+                                      axis=0)
 
-        inputs = np.zeros((min(len_memory, self.__BATCH_SIZE), self.__INPUT_SIZE))
+        actions = np.add(greedy_actions, safe_actions)
+        best_action = np.argmax(actions)
+
+        if best_action != 1 and actions[1] == np.amax(actions):
+            return 1  # Go Forward
+
+        return best_action
+
+    def __adapt(self, model):
+        model_id = 0 if random() < .5 else 1  # Dice rolled
+        len_memory = len(model[2])
+
+        inputs = np.zeros((min(len_memory, self.__BATCH_SIZE), model[1]))
         targets = np.zeros((inputs.shape[0], 3))
 
         for i, ind in enumerate(np.random.randint(0, len_memory, inputs.shape[0])):
-            state, action, reward, next_state = self.__memory.get_experience(ind, 0)
-            terminal, crashed = self.__memory.get_experience(ind, 1)
+            state, action, reward, next_state, done = model[2].get_experience(ind)
 
-            actions = self.__predict(state)
-            next_actions = self.__predict(next_state)
+            inputs[i:i+1] = state
+            targets[i] = model[0][model_id].predict(state)[0]
 
-            inputs[i] = state
-            targets[i] = actions
-
-            if terminal or crashed:
+            if done:
                 targets[i, action] = reward
             else:
-                targets[i, action] = reward + self.__DISCOUNT_FACTOR * np.max(next_actions)
+                # Double Q-Learning Algorithm
+                Q1 = model[0][model_id].predict(next_state)[0]
+                Q2 = model[0][1 - model_id].predict(next_state)[0]
 
-        return inputs, targets
+                targets[i, action] = reward + self.__DISCOUNT_FACTOR * Q2[np.argmax(Q1)]
+
+        if self.__epsilon > self.__epsilon_min:
+            self.__epsilon *= self.__EXPLORATION_RATE
+
+        return model[0][model_id].train_on_batch(inputs, targets)
 
     def train(self, epoch, max_episode_length):
-        self.__load_model()
+        self.__load_models()
 
         reach_count = 0
         results = {
@@ -94,7 +147,7 @@ class Agent:
 
         for episode in range(epoch):
             state = self.__server.receive_data()
-            step, loss, cumulative_reward, terminal, crashed = 0, 0., 0., False, False
+            step, loss_greedy, loss_safe, cumulative_reward, terminal, crashed = 0, 0., 0., 0., False, False
 
             while True:
                 step += 1
@@ -105,33 +158,38 @@ class Agent:
 
                     break
 
-                action = self.__get_next_action(state)
+                action = self.__get_next_action(step, state)
                 self.__connector.send_data(int(action))
 
                 next_state, reward, terminal, crashed = self.__server.receive_data()
-                cumulative_reward += reward
+                cumulative_reward += reward["greedy"] + reward["safe"]
 
                 if terminal:
                     reach_count += 1
 
-                self.__memory.remember_experience([[state, action, reward, next_state], [terminal, crashed]])
+                self.__models["greedy"][2].remember_experience((
+                    state["greedy"], action, reward["greedy"], next_state["greedy"], terminal))
+                self.__models["safe"][2].remember_experience((
+                    state["safe"], action, reward["safe"], next_state["safe"], crashed))
 
-                inputs, targets = self.__adapt()
-                loss += self.__model.train_on_batch(inputs, targets)
+                loss_greedy += self.__adapt(self.__models["greedy"])
 
-                self.__report(step, episode, epoch, loss, reach_count, state, action)
+                if self.__safe_model_usable(state):
+                    loss_safe += self.__adapt(self.__models["safe"])
+
+                self.__report(step, episode, epoch, loss_greedy, loss_safe, reach_count, state, action)
                 state = next_state
 
-            distance = util.c(state[0], state[1])
+            distance = util.c(state["greedy"][0][0], state["greedy"][0][1])
 
             results["distance_per_episode"].append(distance)
             results["cumulative_reward_per_episode"].append(cumulative_reward)
             results["steps_per_episode"].append(step - 1)
             results["reach_counts"].append(reach_count)
 
-            if reach_count % 2 == 1:
-                self.__save_model()
-                self.__memory.save_memory()
+            if reach_count > 0 and reach_count % 5 == 0:
+                self.__save_models()
+                # self.__memory.save_memory()
 
         _ = self.__server.receive_data()
         self.__connector.send_data(-2)  # Stop simulation

@@ -129,18 +129,22 @@ class Environment:
             self.__crashed = True
 
         return {
-            "greedy": np.array(util.to_precision_all(distance, 2)).reshape((1, -1)),
-            "safe": np.array(util.to_precision_all(depth, 2)).reshape((1, -1))
+            "greedy": np.array(util.to_precision_all(distance, 1)).reshape((1, -1)),
+            "safe": np.array(util.to_precision_all(depth, 1)).reshape((1, -1))
         }
 
     def get_reward(self, state):
-        # c is a value between (0, 1]
-        av = np.average(state["safe"])
-
-        return {
-            "greedy": 1000 if self.__terminal else 0,
-            "safe": -100 if self.__crashed else 0
+        reward = {
+            "greedy": 200 if self.__terminal else (
+                -1 * int(max(0, state["greedy"][0][0] ** 2, state["greedy"][0][1] ** 2 > 1.))
+            ),
+            "safe": -10 if self.__crashed else (
+                -1 * int((.5 - min(.5, np.min(state["safe"][0]))) * 10)
+            )
         }
+
+        print(state, reward)
+        return reward
 
     def act(self, action, v1=.3, v2=.05):
         vel_cmd = Twist()
@@ -160,6 +164,9 @@ class Environment:
 
         self.__vel_pub.publish(vel_cmd)
         self.__rate.sleep()
+
+        self.__subscriptions_ready = np.zeros(2)
+        self.__wait_for_subscriptions()
 
         state = self.get_state()
         reward = self.get_reward(state)

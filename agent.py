@@ -5,19 +5,17 @@ from memory import Memory
 
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout
-from keras.optimizers import Adam, RMSprop
+from keras.optimizers import Adam
 from keras.layers.advanced_activations import LeakyReLU
-from keras.regularizers import l2
 
 
 class Agent:
 
-    __BATCH_SIZE = 32
-    __MAX_MEMORY = 1024
-    __HIDDEN_SIZE = 192
+    __BATCH_SIZE = 64
+    __MAX_MEMORY = 2048
+    __HIDDEN_SIZE = 100
     __REGULARIZATION_FACTOR = .01
-    __LEARNING_RATE = .1
-    __DISCOUNT_FACTOR = .9
+    __LEARNING_RATE = .01
     __EXPLORATION_RATE = .999  # Closer to 1 means more exploration.
 
     def __init__(self, connector, server):
@@ -29,11 +27,11 @@ class Agent:
 
         self.__models = {
             "greedy": ((self.__build_model(input_size=2), self.__build_model(input_size=2)), 2,
-                       Memory(max_memory=self.__MAX_MEMORY)),
+                       Memory(max_memory=self.__MAX_MEMORY), .99),
             "safe": ((self.__build_model(input_size=3), self.__build_model(input_size=3)), 3,
-                     Memory(max_memory=self.__MAX_MEMORY)),
+                     Memory(max_memory=self.__MAX_MEMORY), .9),
         }
-        self.__safe_model_usable = lambda state: np.average(state["safe"][0]) <= .5
+        self.__safe_model_usable = lambda step, state: step > 10 and np.min(state["safe"][0]) < 1.
 
     def __report(self, step, episode, epoch, loss_greedy, loss_safe, reach_count, state, action):
         message = "Step {} Epoch {:03d}/{:03d} | Epsilon {:.4f} | " \
@@ -45,29 +43,21 @@ class Agent:
         model = Sequential()
 
         # 1st Layer
-        model.add(Dense(self.__HIDDEN_SIZE, input_shape=(input_size, ),
-                        kernel_initializer='lecun_uniform', kernel_regularizer=l2(self.__REGULARIZATION_FACTOR),
-                        use_bias=True))
+        model.add(Dense(self.__HIDDEN_SIZE, input_shape=(input_size, )))
         model.add(LeakyReLU(alpha=0.01))
 
         # 2nd, 3rd and 4th Layers
         for i in range(3):
-            model.add(Dense(int(self.__HIDDEN_SIZE / 2),
-                            kernel_initializer='lecun_uniform', kernel_regularizer=l2(self.__REGULARIZATION_FACTOR),
-                            use_bias=True))
+            model.add(Dense(self.__HIDDEN_SIZE))
             model.add(LeakyReLU(alpha=0.01))
 
-        # Output Layers
+        # Dropout
         model.add(Dropout(.3))
 
-        '''
-        model.add(Dense(self.__HIDDEN_SIZE, input_shape=(input_size, )))
-        model.add(LeakyReLU(alpha=0.01))
-        model.add(Dense(self.__HIDDEN_SIZE))
-        model.add(LeakyReLU(alpha=0.01))
-        '''
-        model.add(Dense(3, kernel_initializer='lecun_uniform', activation="linear", use_bias=True))
+        # Output Layer
+        model.add(Dense(3, activation="linear"))
 
+        # Compiler
         optimizer = Adam(lr=self.__LEARNING_RATE)
         model.compile(optimizer=optimizer, loss="mse")
 
@@ -80,14 +70,16 @@ class Agent:
 
             self.__epsilon = self.__epsilon_min  # No exploration!
         except OSError:
-            print("No pre-saved model found.")
+            print("No pre-saved models found.")
 
     def __save_models(self):
         self.__models["greedy"][0][0].save_weights("greedy.h5", overwrite=True)
         self.__models["safe"][0][0].save_weights("safe.h5", overwrite=True)
 
     def __get_next_action(self, step, state):
-        if np.random.rand() <= self.__epsilon:
+        epsilon_multiplier = 1 if random() < .75 else 1.5  # Dice rolled
+        if np.random.rand() <= (self.__epsilon * epsilon_multiplier):
+            print("Random action is being chosen with epsilon={}".format(self.__epsilon * epsilon_multiplier))
             return np.random.randint(0, 3, size=1)[0]
 
         # Double Q-Learning Algorithm
@@ -95,7 +87,7 @@ class Agent:
                                     axis=0)
         safe_actions = np.zeros(3, dtype=float)
 
-        if step > 10 and self.__safe_model_usable(state):
+        if self.__safe_model_usable(step, state):
             safe_actions = np.average([self.__models["safe"][0][i].predict(state["safe"])[0] for i in range(2)],
                                       axis=0)
 
@@ -127,7 +119,7 @@ class Agent:
                 Q1 = model[0][model_id].predict(next_state)[0]
                 Q2 = model[0][1 - model_id].predict(next_state)[0]
 
-                targets[i, action] = reward + self.__DISCOUNT_FACTOR * Q2[np.argmax(Q1)]
+                targets[i, action] = reward + model[3] * Q2[np.argmax(Q1)]
 
         if self.__epsilon > self.__epsilon_min:
             self.__epsilon *= self.__EXPLORATION_RATE
@@ -173,8 +165,7 @@ class Agent:
                     state["safe"], action, reward["safe"], next_state["safe"], crashed))
 
                 loss_greedy += self.__adapt(self.__models["greedy"])
-
-                if self.__safe_model_usable(state):
+                if self.__safe_model_usable(step, state):
                     loss_safe += self.__adapt(self.__models["safe"])
 
                 self.__report(step, episode, epoch, loss_greedy, loss_safe, reach_count, state, action)

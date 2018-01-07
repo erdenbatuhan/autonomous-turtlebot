@@ -36,7 +36,7 @@ class Environment:
         self.__subscribe_depth_image_raw()
 
         self.__wait_for_subscriptions()
-        self.__initial_distance, _, _ = util.get_distance_between(self.__position, self.__destination)
+        _, self.__initial_distance, _ = util.get_distance_between(self.__position, self.__destination)
 
     def __shutdown(self):
         rospy.loginfo("TurtleBot is stopping..")
@@ -114,12 +114,11 @@ class Environment:
 
     def get_state(self):
         # S(t) = (distance(t), depth(t))
-        distance, _, self.__terminal = util.get_distance_between(self.__position, self.__destination)
+        _, distance, self.__terminal = util.get_distance_between(self.__position, self.__destination)
         depth = self.__get_depth_minimized(self.__depth_image_raw)
 
         # Get distance as percentage
-        for i in range(len(distance)):
-            distance[i] /= self.__initial_distance[i]
+        distance /= self.__initial_distance
 
         # Get depth modified
         depth = self.__get_depth_modified(depth)
@@ -129,14 +128,14 @@ class Environment:
             self.__crashed = True
 
         return {
-            "greedy": np.array(util.to_precision_all(distance, 1)).reshape((1, -1)),
+            "greedy": np.array(util.to_precision(distance, 2)).reshape((1, -1)),
             "safe": np.array(util.to_precision_all(depth, 1)).reshape((1, -1))
         }
 
     def get_reward(self, state):
         reward = {
-            "greedy": 200 if self.__terminal else (
-                -1 * int(max(0, state["greedy"][0][0] ** 2, state["greedy"][0][1] ** 2 > 1.))
+            "greedy": 1000 if self.__terminal else (
+                -1 * int(max(0, state["greedy"][0]))
             ),
             "safe": -10 if self.__crashed else (
                 -1 * int((.5 - min(.5, np.min(state["safe"][0]))) * 10)

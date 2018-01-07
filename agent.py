@@ -26,10 +26,10 @@ class Agent:
         self.__epsilon_min = .2
 
         self.__models = {
-            "greedy": ((self.__build_model(input_size=2), self.__build_model(input_size=2)), 2,
-                       Memory(max_memory=self.__MAX_MEMORY), .99),
-            "safe": ((self.__build_model(input_size=3), self.__build_model(input_size=3)), 3,
-                     Memory(max_memory=self.__MAX_MEMORY), .9),
+            "greedy": ((self.__build_model(input_size=1, num_layers=2), self.__build_model(input_size=1, num_layers=2)),
+                       1, Memory(max_memory=self.__MAX_MEMORY), .99),
+            "safe": ((self.__build_model(input_size=3, num_layers=3), self.__build_model(input_size=3, num_layers=3)),
+                     3,  Memory(max_memory=self.__MAX_MEMORY), .9),
         }
         self.__safe_model_usable = lambda step, state: step > 10 and np.min(state["safe"][0]) < 1.
 
@@ -39,15 +39,15 @@ class Agent:
         print(message.format(step, episode, (epoch - 1), self.__epsilon,
                              loss_greedy, loss_safe, reach_count, state, action))
 
-    def __build_model(self, input_size):
+    def __build_model(self, input_size, num_layers):
         model = Sequential()
 
-        # 1st Layer
+        # Initial Layer
         model.add(Dense(self.__HIDDEN_SIZE, input_shape=(input_size, )))
         model.add(LeakyReLU(alpha=0.01))
 
-        # 2nd, 3rd and 4th Layers
-        for i in range(3):
+        # Additional layers
+        for i in range(num_layers - 1):
             model.add(Dense(self.__HIDDEN_SIZE))
             model.add(LeakyReLU(alpha=0.01))
 
@@ -171,7 +171,7 @@ class Agent:
                 self.__report(step, episode, epoch, loss_greedy, loss_safe, reach_count, state, action)
                 state = next_state
 
-            distance = util.c(state["greedy"][0][0], state["greedy"][0][1])
+            distance = state["greedy"][0]
 
             results["distance_per_episode"].append(distance)
             results["cumulative_reward_per_episode"].append(cumulative_reward)

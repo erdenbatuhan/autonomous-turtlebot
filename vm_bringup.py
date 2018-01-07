@@ -12,9 +12,9 @@ def main():
 
     state = env.get_state()  # Initial state
 
-    if state["greedy"][0][0] != 1. or state["greedy"][0][1] != 1:
-        print("Expected initial distance (1., 1.), got {}. Re-running the simulation..".
-              format((state["greedy"][0][0], state["greedy"][0][1])))
+    if state["greedy"][0][0] != 1.:
+        print("Expected initial distance (1.), got ({}). Re-running the simulation..".
+              format((state["greedy"][0][0])))
         return main()  # Stop simulation
 
     connector = vm.VMConnector()

@@ -129,7 +129,7 @@ class Environment:
 
         return {
             "greedy": np.array(util.to_precision(distance, 2)).reshape((1, -1)),
-            "safe": np.array(util.to_precision_all(depth, 1)).reshape((1, -1))
+            "safe": np.array(util.to_precision_all(depth, 2)).reshape((1, -1))
         }
 
     def get_reward(self, state):

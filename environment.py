@@ -137,21 +137,20 @@ class Environment:
             "safe": 0 if self.crashed else np.average(state["safe"][0])
         }
 
-        print("State {} | Reward {}".format(state, reward))
         return reward
 
     def act(self, action, v1=.3, v2=.05):
         vel_cmd = Twist()
 
         if action == 0:  # LEFT
-            vel_cmd.linear.x = v1 - v2
-            vel_cmd.angular.z = 2 * v1
+            vel_cmd.linear.x = v2
+            vel_cmd.angular.z = v1
         elif action == 1:  # FORWARD
-            vel_cmd.linear.x = 3 * (v1 - v2)
+            vel_cmd.linear.x = v1 - v2
             vel_cmd.angular.z = 0.
         elif action == 2:  # RIGHT
-            vel_cmd.linear.x = v1 - v2
-            vel_cmd.angular.z = -2 * v1
+            vel_cmd.linear.x = v2
+            vel_cmd.angular.z = -v1
 
         if rospy.is_shutdown():
             return
@@ -165,6 +164,7 @@ class Environment:
         state = self.get_state()
         reward = self.get_reward(state)
 
+        print("State {} | Reward {} | Act {}".format(state, reward, action))
         return state, reward, self.terminal, self.crashed
 
     @staticmethod

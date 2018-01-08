@@ -1,4 +1,3 @@
-import util
 import numpy as np
 from random import random
 from memory import Memory
@@ -11,8 +10,9 @@ from keras.layers.advanced_activations import LeakyReLU
 
 class Agent:
 
-    __BATCH_SIZE = 64
-    __MAX_MEMORY = 2048
+    __MODELS_DIRECTORY = "./models"
+    __BATCH_SIZE = 128
+    __MAX_MEMORY = 32768
     __HIDDEN_SIZE = 100
     __REGULARIZATION_FACTOR = .01
     __LEARNING_RATE = .01
@@ -23,15 +23,15 @@ class Agent:
         self.__server = server
 
         self.__epsilon = 1.
-        self.__epsilon_min = .2
+        self.__epsilon_min = .1
 
         self.__models = {
             "greedy": ((self.__build_model(input_size=1, num_layers=2), self.__build_model(input_size=1, num_layers=2)),
-                       1, Memory(max_memory=self.__MAX_MEMORY), .99),
+                       1, Memory(model_name="greedy", max_memory=self.__MAX_MEMORY), .99),
             "safe": ((self.__build_model(input_size=3, num_layers=3), self.__build_model(input_size=3, num_layers=3)),
-                     3,  Memory(max_memory=self.__MAX_MEMORY), .9),
+                     3, Memory(model_name="safe", max_memory=self.__MAX_MEMORY), .9),
         }
-        self.__safe_model_usable = lambda step, state: step > 10 and np.min(state["safe"][0]) < .75
+        self.__is_collision_risk_detected = lambda step, state: step > 10 and np.min(state["safe"][0]) < .5
 
     def __report(self, step, episode, epoch, loss_greedy, loss_safe, reach_count, state, action):
         message = "Step {} Epoch {:03d}/{:03d} | Epsilon {:.4f} | " \
@@ -63,33 +63,51 @@ class Agent:
 
         return model
 
-    def __load_models(self):
-        try:
-            self.__models["greedy"][0][0].load_weights("greedy.h5")
-            self.__models["safe"][0][0].load_weights("safe.h5")
+    def __load_model(self, model_name):
+        path = self.__MODELS_DIRECTORY + "/" + model_name + "_model.h5"
 
+        try:
+            self.__models[model_name][0][0].load_weights(filepath=path)
             self.__epsilon = self.__epsilon_min  # No exploration!
         except OSError:
-            print("No pre-saved models found.")
+            print("No pre-saved model found for " + model_name + " model.")
+
+    def __load_models(self):
+        self.__load_model("greedy")
+        self.__load_model("safe")
+
+    def __save_model(self, model_name):
+        path = self.__MODELS_DIRECTORY + "/" + model_name + "_model.h5"
+
+        self.__models[model_name][0][0].save_weights(filepath=path, overwrite=True)
+        print("Model of " + model_name + " model saved.")
 
     def __save_models(self):
-        self.__models["greedy"][0][0].save_weights("greedy.h5", overwrite=True)
-        self.__models["safe"][0][0].save_weights("safe.h5", overwrite=True)
+        self.__save_model("greedy")
+        self.__save_model("safe")
 
-    def __get_next_action(self, step, state):
+    def __get_random_action(self):
         epsilon_multiplier = 1 if random() < .75 else 1.5  # Dice rolled
         if np.random.rand() <= (self.__epsilon * epsilon_multiplier):
             print("Random action is being chosen with epsilon={}".format(self.__epsilon * epsilon_multiplier))
             return np.random.randint(0, 3, size=1)[0]
 
-        # Double Q-Learning Algorithm
-        greedy_actions = np.average([self.__models["greedy"][0][i].predict(state["greedy"])[0] for i in range(2)],
-                                    axis=0)
-        safe_actions = np.zeros(3, dtype=float)
+        return -1  # No random
 
-        if self.__safe_model_usable(step, state):
-            safe_actions = np.average([self.__models["safe"][0][i].predict(state["safe"])[0] for i in range(2)],
-                                      axis=0)
+    def __get_next_action(self, step, state):
+        next_action = self.__get_random_action()
+
+        if next_action != -1:
+            return next_action
+
+        # Double Q-Learning Algorithm
+        greedy_actions = np.add(self.__models["greedy"][0][0].predict(state["greedy"])[0],
+                                self.__models["greedy"][0][1].predict(state["greedy"])[0])
+        safe_actions = np.add(self.__models["safe"][0][0].predict(state["safe"])[0],
+                              self.__models["safe"][0][1].predict(state["safe"])[0])
+
+        if np.argmax(greedy_actions) == np.argmax(safe_actions) or self.__is_collision_risk_detected(step, state):
+            return np.argmax(safe_actions)
 
         actions = np.add(greedy_actions, safe_actions)
         best_action = np.argmax(actions)
@@ -177,9 +195,10 @@ class Agent:
             results["steps_per_episode"].append(step - 1)
             results["reach_counts"].append(reach_count)
 
-            if reach_count > 0 and reach_count % 5 == 0:
+            if reach_count > 0:
                 self.__save_models()
-                # self.__memory.save_memory()
+                self.__models["greedy"][2].save_memory()
+                self.__models["safe"][2].save_memory()
 
         _ = self.__server.receive_data()
         self.__connector.send_data(-2)  # Stop simulation

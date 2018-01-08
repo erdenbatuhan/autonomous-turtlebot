@@ -105,10 +105,10 @@ class Environment:
     def __get_depth_modified(depth):
         count_special = sum([1 if d == .12 else 0 for d in depth])
         if count_special == 1:
-            depth = [10. if d == .12 else d for d in depth]
+            depth = [1. if d == .12 else d for d in depth]
 
         powers = [1, 1, 1]
-        depth_modified = [10 if d > .75 else d for d in depth]
+        depth_modified = [1. if d > .75 else d for d in depth]
 
         return [p * d for p, d in zip(powers, depth_modified)]
 
@@ -134,13 +134,14 @@ class Environment:
 
     def get_reward(self, state):
         c = state["greedy"][0][0]
+        d = np.average(state["safe"][0])
 
         reward = {
-            "greedy": 5000 if self.__terminal else (
-                10 / c if c < 1. else -10 * c
+            "greedy": 2000 if self.__terminal else (
+                1 / c if c < 1. else -c
             ),
             "safe": -200 if self.__crashed else (
-                -1 * int((.75 - min(.75, np.min(state["safe"][0]))) * 10)
+                -1 / d if d != 1. else 0
             )
         }
 

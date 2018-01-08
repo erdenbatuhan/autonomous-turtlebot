@@ -31,7 +31,7 @@ class Agent:
             "safe": ((self.__build_model(input_size=3, num_layers=3), self.__build_model(input_size=3, num_layers=3)),
                      3, Memory(model_name="safe", max_memory=self.__MAX_MEMORY), .9),
         }
-        self.__is_collision_risk_detected = lambda step, state: step > 10 and np.min(state["safe"][0]) < .5
+        self.__is_collision_risk_detected = lambda state: np.min(state["safe"][0]) < .5
 
     def __report(self, step, episode, epoch, loss_greedy, loss_safe, reach_count, state, action):
         message = "Step {} Epoch {:03d}/{:03d} | Epsilon {:.4f} | " \
@@ -94,7 +94,7 @@ class Agent:
 
         return -1  # No random
 
-    def __get_next_action(self, step, state):
+    def __get_next_action(self, state):
         next_action = self.__get_random_action()
 
         if next_action != -1:
@@ -106,7 +106,7 @@ class Agent:
         safe_actions = np.add(self.__models["safe"][0][0].predict(state["safe"])[0],
                               self.__models["safe"][0][1].predict(state["safe"])[0])
 
-        if np.argmax(greedy_actions) == np.argmax(safe_actions) or self.__is_collision_risk_detected(step, state):
+        if np.argmax(greedy_actions) == np.argmax(safe_actions) or self.__is_collision_risk_detected(state):
             return np.argmax(safe_actions)
 
         actions = np.add(greedy_actions, safe_actions)
@@ -168,7 +168,7 @@ class Agent:
 
                     break
 
-                action = self.__get_next_action(step, state)
+                action = self.__get_next_action(state)
                 self.__connector.send_data(int(action))
 
                 next_state, reward, terminal, crashed = self.__server.receive_data()

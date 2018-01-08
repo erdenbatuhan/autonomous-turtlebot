@@ -133,9 +133,11 @@ class Environment:
         }
 
     def get_reward(self, state):
+        c = state["greedy"][0][0]
+
         reward = {
             "greedy": 5000 if self.__terminal else (
-                10 / state["greedy"][0][0]
+                10 / c if c < 1. else -10 * c
             ),
             "safe": -200 if self.__crashed else (
                 -1 * int((.75 - min(.75, np.min(state["safe"][0]))) * 10)

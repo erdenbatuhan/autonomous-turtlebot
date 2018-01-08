@@ -2,6 +2,9 @@
 ### Autonomous TurtleBot .gitignore file
 ### --------------------------------------
 
+# Config files:
+*.ini
+
 # Mac-specific stuff:
 .DS_Store
 

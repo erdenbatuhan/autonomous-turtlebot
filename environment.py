@@ -12,7 +12,7 @@ from cv_bridge import CvBridge, CvBridgeError
 
 class Environment:
 
-    FREQUENCY = 10
+    ROSPY_FREQUENCY = 10
 
     def __init__(self, base_name, destination):
         rospy.init_node("Environment", anonymous=False)
@@ -20,7 +20,7 @@ class Environment:
         rospy.on_shutdown(self.shutdown)
 
         self.vel_pub = rospy.Publisher("/mobile_base/commands/velocity", Twist, queue_size=5)
-        self.rate = rospy.Rate(self.FREQUENCY)
+        self.rate = rospy.Rate(self.ROSPY_FREQUENCY)
         self.bridge = CvBridge()
         self.initial_time = time.time()
         self.base_name = base_name
@@ -123,7 +123,7 @@ class Environment:
         depth = self.get_depth_modified(depth)
 
         # Check if crashed
-        if np.min(depth) <= .05:
+        if np.min(depth) <= 0.05:
             self.crashed = True
 
         return {

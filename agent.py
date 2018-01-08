@@ -14,6 +14,8 @@ class Agent:
         self.safe_model = Model(name="safe", input_size=3, hidden_size=100, num_layers=3,
                                 max_memory=32768, learning_rate=0.01, discount_factor=0.9)
 
+        self.is_collision_risk_detected = lambda state: np.min(state["safe"][0]) < 0.25
+
     def load_models(self):
         # Greedy
         self.greedy_model.load_model()
@@ -44,8 +46,11 @@ class Agent:
         actions = np.add(greedy_actions, safe_actions)
         best_action = np.argmax(actions)
 
-        if best_action != 1 and actions[1] == np.amax(actions):
-            return 1  # Go Forward
+        if self.is_collision_risk_detected(state):
+            print("Collision risk detected!")
+            return np.argmax(safe_actions), False
+        elif best_action != 1 and actions[1] == np.amax(actions):
+            return 1, False  # Go Forward
 
         return best_action, False
 

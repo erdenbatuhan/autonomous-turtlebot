@@ -1,5 +1,4 @@
 import time
-import math
 import util
 import rospy
 import numpy as np
@@ -13,71 +12,71 @@ from cv_bridge import CvBridge, CvBridgeError
 
 class Environment:
 
-    __FREQUENCY = 10
+    FREQUENCY = 10
 
     def __init__(self, base_name, destination):
         rospy.init_node("Environment", anonymous=False)
         rospy.loginfo("CTRL + C to terminate..")
-        rospy.on_shutdown(self.__shutdown)
+        rospy.on_shutdown(self.shutdown)
 
-        self.__vel_pub = rospy.Publisher("/mobile_base/commands/velocity", Twist, queue_size=5)
-        self.__rate = rospy.Rate(self.__FREQUENCY)
-        self.__bridge = CvBridge()
-        self.__initial_time = time.time()
-        self.__base_name = base_name
-        self.__position = {"x": 0., "y": 0.}
-        self.__destination = destination
-        self.__depth_image_raw = None
-        self.__terminal = False
-        self.__crashed = False
+        self.vel_pub = rospy.Publisher("/mobile_base/commands/velocity", Twist, queue_size=5)
+        self.rate = rospy.Rate(self.FREQUENCY)
+        self.bridge = CvBridge()
+        self.initial_time = time.time()
+        self.base_name = base_name
+        self.position = {"x": 0., "y": 0.}
+        self.destination = destination
+        self.depth_image_raw = None
+        self.terminal = False
+        self.crashed = False
 
-        self.__subscriptions_ready = np.zeros(2)
-        self.__subscribe_model_states()
-        self.__subscribe_depth_image_raw()
+        self.subscriptions_ready = np.zeros(2)
+        self.subscribe_model_states()
+        self.subscribe_depth_image_raw()
 
-        self.__wait_for_subscriptions()
-        _, self.__initial_distance, _ = util.get_distance_between(self.__position, self.__destination)
+        self.wait_for_subscriptions()
+        _, self.initial_distance, _ = util.get_distance_between(self.position, self.destination)
 
-    def __shutdown(self):
+    def shutdown(self):
         rospy.loginfo("TurtleBot is stopping..")
-        self.__vel_pub.publish(Twist())
+        self.vel_pub.publish(Twist())
 
         rospy.sleep(1)
         rospy.loginfo("TurtleBot stopped!")
 
-    def __wait_for_subscriptions(self):
-        while np.sum(self.__subscriptions_ready) < 2:
+    def wait_for_subscriptions(self):
+        while np.sum(self.subscriptions_ready) < 2:
             pass
 
-    def __model_states_callback(self, model_states):
-        base_ind = util.get_index_of(model_states.name, self.__base_name)
+    def model_states_callback(self, model_states):
+        base_ind = util.get_index_of(model_states.name, self.base_name)
         position = model_states.pose[base_ind].position
 
         # destination_ind = util.get_index_of(model_states.name, self.__destination_name)
         # destination = model_states.pose[destination_ind].position
 
-        self.__position["x"] = position.x
-        self.__position["y"] = position.y
+        self.position["x"] = position.x
+        self.position["y"] = position.y
 
-        self.__subscriptions_ready[0] = 1
+        self.subscriptions_ready[0] = 1
 
-    def __depth_image_raw_callback(self, depth_image_raw):
+    def depth_image_raw_callback(self, depth_image_raw):
         try:
-            self.__depth_image_raw = self.__bridge.imgmsg_to_cv2(depth_image_raw, "32FC1")
+            self.depth_image_raw = self.bridge.imgmsg_to_cv2(depth_image_raw, "32FC1")
         except CvBridgeError as e:
             print(e)
 
-        self.__depth_image_raw = np.array(self.__depth_image_raw, dtype=np.float32)
-        self.__subscriptions_ready[1] = 1
+        self.depth_image_raw = np.array(self.depth_image_raw, dtype=np.float32)
+        self.subscriptions_ready[1] = 1
 
-    def __subscribe_model_states(self):
-        rospy.Subscriber("/gazebo/model_states", ModelStates, self.__model_states_callback)
+    def subscribe_model_states(self):
+        rospy.Subscriber("/gazebo/model_states", ModelStates, self.model_states_callback)
 
-    def __subscribe_depth_image_raw(self):
-        rospy.Subscriber("/camera/depth/image_raw", Image, self.__depth_image_raw_callback)
+    def subscribe_depth_image_raw(self):
+        rospy.Subscriber("/camera/depth/image_raw", Image, self.depth_image_raw_callback)
 
     @staticmethod
-    def __get_depth_minimized(image):
+    def get_depth_minimized(image):
         depth = np.zeros((8, 8), dtype=np.float)
         depth_minimized = np.zeros(3, dtype=np.float)
 
@@ -102,7 +101,7 @@ class Environment:
         return depth_minimized
 
     @staticmethod
-    def __get_depth_modified(depth):
+    def get_depth_modified(depth):
         count_special = sum([1 if d == .12 else 0 for d in depth])
         if count_special == 1:
             depth = [1. if d == .12 else d for d in depth]
@@ -114,18 +113,18 @@ class Environment:
 
     def get_state(self):
         # S(t) = (distance(t), depth(t))
-        _, distance, self.__terminal = util.get_distance_between(self.__position, self.__destination)
-        depth = self.__get_depth_minimized(self.__depth_image_raw)
+        _, distance, self.terminal = util.get_distance_between(self.position, self.destination)
+        depth = self.get_depth_minimized(self.depth_image_raw)
 
         # Get distance as percentage
-        distance /= self.__initial_distance
+        distance /= self.initial_distance
 
         # Get depth modified
-        depth = self.__get_depth_modified(depth)
+        depth = self.get_depth_modified(depth)
 
         # Check if crashed
         if np.min(depth) <= .05:
-            self.__crashed = True
+            self.crashed = True
 
         return {
             "greedy": np.array(util.to_precision(distance, 2)).reshape((1, -1)),
@@ -133,19 +132,12 @@ class Environment:
         }
 
     def get_reward(self, state):
-        c = state["greedy"][0][0]
-        d = np.average(state["safe"][0])
-
         reward = {
-            "greedy": 2000 if self.__terminal else (
-                1 / c if c < 1. else -c
-            ),
-            "safe": -200 if self.__crashed else (
-                -1 / d if d != 1. else 0
-            )
+            "greedy": 20 if self.terminal else (1 - state["greedy"][0][0]),
+            "safe": 0 if self.crashed else np.average(state["safe"][0])
         }
 
-        print(state, reward)
+        print("State {} | Reward {}".format(state, reward))
         return reward
 
     def act(self, action, v1=.3, v2=.05):
@@ -164,19 +156,19 @@ class Environment:
         if rospy.is_shutdown():
             return
 
-        self.__vel_pub.publish(vel_cmd)
-        self.__rate.sleep()
+        self.vel_pub.publish(vel_cmd)
+        self.rate.sleep()
 
-        self.__subscriptions_ready = np.zeros(2)
-        self.__wait_for_subscriptions()
+        self.subscriptions_ready = np.zeros(2)
+        self.wait_for_subscriptions()
 
         state = self.get_state()
         reward = self.get_reward(state)
 
-        return state, reward, self.__terminal, self.__crashed
+        return state, reward, self.terminal, self.crashed
 
     @staticmethod
-    def __reset_model_state(model_state):
+    def reset_model_state(model_state):
         model_state.pose.position.x = 0.
         model_state.pose.position.y = 0.
         model_state.pose.position.z = 0.
@@ -196,18 +188,18 @@ class Environment:
         set_model_state = rospy.ServiceProxy("/gazebo/set_model_state", SetModelState)
 
         model_state = ModelState()
-        model_state.model_name = self.__base_name
+        model_state.model_name = self.base_name
 
-        self.__reset_model_state(model_state)
+        self.reset_model_state(model_state)
         set_model_state(model_state)
 
-        self.__shutdown()
+        self.shutdown()
 
-        self.__terminal = False
-        self.__crashed = False
+        self.terminal = False
+        self.crashed = False
 
-        self.__subscriptions_ready = np.zeros(2)
-        self.__wait_for_subscriptions()
+        self.subscriptions_ready = np.zeros(2)
+        self.wait_for_subscriptions()
 
-        self.__initial_time = time.time()
+        self.initial_time = time.time()
 

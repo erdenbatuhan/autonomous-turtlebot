@@ -15,15 +15,24 @@ def plot_results(results):
         "reach_counts": "Reach Count"
     }
 
-    for result_type in results.keys():
-        result = results[result_type]
+    for i in results.keys():
+        result = results[i]
 
         plt.xlabel("Episode")
-        plt.ylabel(result_types[result_type])
+        plt.ylabel(result_types[i])
 
-        plt.plot(result)
-        plt.savefig("./results/" + result_type + "_" + str(EPOCH) + "_" + str(MAX_EPISODE_LENGTH) + ".png")
+        try:
+            legends = []
 
+            for j in result.keys():
+                line, = plt.plot(result[j], label=j)
+                legends.append(line)
+
+            plt.legend(legends, list(result.keys()))
+        except AttributeError:
+            plt.plot(result)
+
+        plt.savefig("./results/" + i + "_" + str(EPOCH) + "_" + str(MAX_EPISODE_LENGTH) + ".png")
         plt.gcf().clear()
 
 

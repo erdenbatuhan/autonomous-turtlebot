@@ -5,16 +5,19 @@ from model import Model
 
 class Agent:
 
+    EPSILON = 0.05
+
     def __init__(self, connector, server):
         self.__connector = connector
         self.__server = server
 
-        self.greedy_model = Model(name="greedy", input_size=1, hidden_size=100, num_layers=2,
+        self.greedy_model = Model(name="greedy", input_size=1, output_size=5, hidden_size=100, num_layers=2,
                                   max_memory=32768, learning_rate=0.01, discount_factor=0.99)
-        self.safe_model = Model(name="safe", input_size=3, hidden_size=100, num_layers=3,
+        self.safe_model = Model(name="safe", input_size=3, output_size=5, hidden_size=100, num_layers=4,
                                 max_memory=32768, learning_rate=0.01, discount_factor=0.9)
 
-        self.is_collision_risk_detected = lambda state: np.min(state["safe"][0]) < 0.25
+        self.get_first_true = lambda arr: [index for index, item in enumerate(arr) if item][0]
+        self.is_collision_risk_detected = lambda state: np.min(state["safe"][0]) < 0.4
 
     def load_models(self):
         # Greedy
@@ -32,35 +35,62 @@ class Agent:
         self.safe_model.save_model()
         self.safe_model.memory.save_memory()
 
-    def get_next_action(self, state, epsilon=0.05):
-        epsilon_multiplier = 1 if random() < .5 else 2  # Dice rolled
-        if np.random.rand() <= (epsilon * epsilon_multiplier):
-            return np.random.randint(0, 3, size=1)[0], True
+    def get_random_action(self):
+        epsilon_multiplier = 1. if random() < 0.5 else 2.  # Dice rolled
 
-        # Double Q-Learning Algorithm
+        if np.random.rand() <= (self.EPSILON * epsilon_multiplier):
+            return np.random.randint(0, 5, size=1)[0]
+
+        return None
+
+    @staticmethod
+    def get_votes(actions, vote_count):
+        actions_cp = actions.copy()
+        votes = []
+
+        for _ in range(vote_count):
+            vote = np.argmax(actions_cp)
+            votes.append(vote)
+
+            actions_cp[vote] = -np.inf
+
+        return votes
+
+    def get_next_action(self, state):
+        random_action = self.get_random_action()
+
+        # Actions of each model with Double Qs
         greedy_actions = np.add(self.greedy_model.models[0].predict(state["greedy"])[0],
                                 self.greedy_model.models[1].predict(state["greedy"])[0])
         safe_actions = np.add(self.safe_model.models[0].predict(state["safe"])[0],
                               self.safe_model.models[1].predict(state["safe"])[0])
 
-        actions = np.add(greedy_actions, safe_actions)
-        best_action = np.argmax(actions)
+        shared_actions = np.add(greedy_actions, safe_actions)
 
+        # Give full control to safe model in case of collision
         if self.is_collision_risk_detected(state):
             print("Collision risk detected!")
             return np.argmax(safe_actions), False
-        elif best_action != 1 and actions[1] == np.amax(actions):
-            return 1, False  # Go Forward
+        elif random_action is not None:
+            return random_action, True
+        
+        # Action votes of each model
+        greedy_votes = self.get_votes(greedy_actions, 3)
+        safe_votes = self.get_votes(safe_actions, 3)
 
-        return best_action, False
+        try:
+            first_common_vote = self.get_first_true(np.equal(greedy_votes, safe_votes))
+            return first_common_vote, False
+        except IndexError:  # When both of the models couldn't reach to a consensus
+            return np.argmax(shared_actions), False
 
     @staticmethod
     def experience_replay(model, batch_size=128):
-        model_id = 0 if random() < .5 else 1  # Dice rolled
+        model_id = 0 if random() < 0.5 else 1  # Dice rolled
         len_memory = len(model.memory)
 
         inputs = np.zeros((min(len_memory, batch_size), model.input_size))
-        targets = np.zeros((inputs.shape[0], 3))
+        targets = np.zeros((inputs.shape[0], 5))
 
         for i, ind in enumerate(np.random.randint(0, len_memory, inputs.shape[0])):
             state, action, reward, next_state, done = model.memory.get_experience(ind)
@@ -138,7 +168,7 @@ class Agent:
     def report(step, episode, epoch, loss_greedy, loss_safe, reach_count, state, action, is_random):
         print("Step {} Epoch {:03d}/{:03d} | Loss Greedy {:.2f} | Loss Safe {:.2f} | Reach count {} | State {} "
               "| Act {} | Random Act {}".format(step, episode, (epoch - 1), loss_greedy, loss_safe, reach_count, state,
-                                                action, is_random))
+                                                (action - 2), is_random))
 
     @staticmethod
     def build_results():

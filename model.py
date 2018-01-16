@@ -9,17 +9,17 @@ class Model:
 
     MODELS_DIRECTORY = "./models"
 
-    def __init__(self, name, input_size, hidden_size, num_layers, max_memory, learning_rate, discount_factor):
+    def __init__(self, name, input_size, output_size, hidden_size, num_layers, max_memory, learning_rate, discount_factor):
         self.name = name
         self.input_size = input_size
         self.discount_factor = discount_factor
 
         self.memory = Memory(model_name=name, max_memory=max_memory)
-        self.models = [self.build_model(input_size, hidden_size, num_layers, learning_rate),
-                       self.build_model(input_size, hidden_size, num_layers, learning_rate)]
+        self.models = [self.build_model(input_size, output_size, hidden_size, num_layers, learning_rate),
+                       self.build_model(input_size, output_size, hidden_size, num_layers, learning_rate)]
 
     @staticmethod
-    def build_model(input_size, hidden_size, num_layers, learning_rate):
+    def build_model(input_size, output_size, hidden_size, num_layers, learning_rate):
         model = Sequential()
 
         model.add(Dense(hidden_size, input_shape=(input_size, )))
@@ -30,7 +30,7 @@ class Model:
             model.add(LeakyReLU(alpha=0.01))
 
         model.add(Dropout(.3))
-        model.add(Dense(3, activation="linear"))
+        model.add(Dense(output_size, activation="linear"))
 
         optimizer = Adam(lr=learning_rate)
         model.compile(optimizer=optimizer, loss="mse")

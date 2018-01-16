@@ -3,7 +3,7 @@ from environment import Environment
 
 
 BASE_NAME = "mobile_base"
-DESTINATION = {"x": 8., "y": -2.}
+DESTINATION = {"x": 8., "y": 0.}
 
 
 def main():

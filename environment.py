@@ -1,6 +1,7 @@
 import time
 import util
 import rospy
+import cv2
 import numpy as np
 
 from gazebo_msgs.srv import SetModelState
@@ -61,8 +62,13 @@ class Environment:
         self.subscriptions_ready[0] = 1
 
     def depth_image_raw_callback(self, depth_image_raw):
+        cv2.imshow("1", self.depth_image_raw)
+        cv2.waitKey(0)
+
         try:
             self.depth_image_raw = self.bridge.imgmsg_to_cv2(depth_image_raw, "32FC1")
+            cv2.imshow("2", self.depth_image_raw)
+            cv2.waitKey(0)
         except CvBridgeError as e:
             print(e)
 
@@ -92,9 +98,9 @@ class Environment:
                     depth[i][j] = 0
 
         try:
-            depth_minimized[0] = util.to_precision(np.average(depth[:, 0:2]), 2)
-            depth_minimized[1] = util.to_precision(np.average(depth[:, 2:6]), 2)
-            depth_minimized[2] = util.to_precision(np.average(depth[:, 6:8]), 2)
+            depth_minimized[0] = np.average(depth[:, 0:2])
+            depth_minimized[1] = np.average(depth[:, 2:6])
+            depth_minimized[2] = np.average(depth[:, 6:8])
         except OverflowError:
             depth_minimized = np.zeros(3, dtype=np.float)
 
@@ -104,12 +110,13 @@ class Environment:
     def get_depth_modified(depth):
         count_special = sum([1 if d == .12 else 0 for d in depth])
         if count_special == 1:
-            depth = [1. if d == .12 else d for d in depth]
+            depth = [5. if d == .12 else d for d in depth]
 
         powers = [1, 1, 1]
-        depth_modified = [1. if d > .75 else d for d in depth]
+        depth_modified = [1. if d > 75 else d for d in depth]
 
-        return [p * d for p, d in zip(powers, depth_modified)]
+        # return [p * d for p, d in zip(powers, depth_modified)]
+        return depth
 
     def get_state(self):
         # S(t) = (distance(t), depth(t))
@@ -118,39 +125,47 @@ class Environment:
 
         # Get distance as percentage
         distance /= self.initial_distance
+        distance = np.array(distance)
 
         # Get depth modified
         depth = self.get_depth_modified(depth)
+        depth = np.array(depth)
 
         # Check if crashed
         if np.min(depth) <= 0.05:
             self.crashed = True
 
         return {
-            "greedy": np.array(util.to_precision(distance, 2)).reshape((1, -1)),
-            "safe": np.array(util.to_precision_all(depth, 2)).reshape((1, -1))
+            "greedy": distance.reshape((1, -1)),
+            "safe": depth.reshape((1, -1))
         }
 
     def get_reward(self, state):
         reward = {
-            "greedy": 20 if self.terminal else (1 - state["greedy"][0][0]),
-            "safe": 0 if self.crashed else np.average(state["safe"][0])
+            "greedy": 200 if self.terminal else 1 / state["greedy"][0][0],
+            "safe": -10 if self.crashed else -1 / np.average(state["safe"][0])
         }
 
         return reward
 
-    def act(self, action, v1=.3, v2=.05):
+    def act(self, action, v1=0.3, v2=0.05):
         vel_cmd = Twist()
 
         if action == 0:  # LEFT
-            vel_cmd.linear.x = v2
-            vel_cmd.angular.z = v1
-        elif action == 1:  # FORWARD
             vel_cmd.linear.x = v1 - v2
+            vel_cmd.angular.z = 2. * v1
+        elif action == 1:  # FORWARD - LEFT
+            vel_cmd.linear.x = v1 - v2
+            vel_cmd.angular.z = v1
+        elif action == 2:  # FORWARD - AHEAD
+            vel_cmd.linear.x = 2. * (v1 - v2)
             vel_cmd.angular.z = 0.
-        elif action == 2:  # RIGHT
-            vel_cmd.linear.x = v2
+        elif action == 3:  # FORWARD - RIGHT
+            vel_cmd.linear.x = v1 - v2
             vel_cmd.angular.z = -v1
+        elif action == 4:  # RIGHT
+            vel_cmd.linear.x = v1 - v2
+            vel_cmd.angular.z = -2. * v1
 
         if rospy.is_shutdown():
             return
@@ -164,7 +179,7 @@ class Environment:
         state = self.get_state()
         reward = self.get_reward(state)
 
-        print("State {} | Reward {} | Act {}".format(state, reward, action))
+        print("State {} | Reward {} | Act {}".format(state, reward, (action - 2)))
         return state, reward, self.terminal, self.crashed
 
     @staticmethod

@@ -2,6 +2,9 @@
 ### Autonomous TurtleBot .gitignore file
 ### --------------------------------------
 
+# Videos:
+results/videos
+
 # Config files:
 *.ini
 

@@ -7,15 +7,10 @@ DESTINATION = {"x": 8., "y": 0.}
 
 
 def main():
-    env = Environment(base_name=BASE_NAME, destination=DESTINATION)
+    env = Environment(base_name=BASE_NAME)
     env.reset_base()
 
-    state = env.get_state()  # Initial state
-
-    if state["greedy"][0][0] != 1.:
-        print("Expected initial distance (1.), got ({}). Re-running the simulation..".
-              format((state["greedy"][0][0])))
-        return main()  # Stop simulation
+    state = env.observe()  # Initial state
 
     connector = vm.VMConnector()
     server = vm.VMServer()
@@ -28,11 +23,11 @@ def main():
         if action == -1:
             env.reset_base()
 
-            state = env.get_state()  # Initial state
+            state = env.observe()  # Initial state
             connector.send_data(state)
         else:
-            next_state, reward, terminal, crashed = env.act(action)
-            connector.send_data((next_state, reward, terminal, crashed))
+            next_state, reward, terminal = env.act(action)
+            connector.send_data((next_state, reward, terminal))
 
         action = server.receive_data()
 

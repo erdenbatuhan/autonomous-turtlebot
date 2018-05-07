@@ -3,19 +3,13 @@ from environment import Environment
 
 
 BASE_NAME = "mobile_base"
-DESTINATION = {"x": 8., "y": 0.}
 
 
 def main():
-    env = Environment(base_name=BASE_NAME, destination=DESTINATION)
+    env = Environment(base_name=BASE_NAME)
     env.reset_base()
 
     state = env.get_state()  # Initial state
-
-    if state["greedy"][0][0] != 1.:
-        print("Expected initial distance (1.), got ({}). Re-running the simulation..".
-              format((state["greedy"][0][0])))
-        return main()  # Stop simulation
 
     connector = vm.VMConnector()
     server = vm.VMServer()

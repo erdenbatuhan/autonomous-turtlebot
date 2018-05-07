@@ -3,10 +3,7 @@ import pickle
 
 class Memory:
 
-    MEMORIES_DIRECTORY = "./memories"
-
-    def __init__(self, model_name, max_memory):
-        self.model_name = model_name
+    def __init__(self, max_memory):
         self.max_memory = max_memory
 
         self.memory = []
@@ -20,10 +17,10 @@ class Memory:
 
     def load_memory(self):
         try:
-            with open(self.MEMORIES_DIRECTORY + "/" + self.model_name + "_memory.pkl", "rb") as memory_reader:
+            with open("./data/memory.pkl", "rb") as memory_reader:
                 self.memory = pickle.load(memory_reader)
         except OSError:
-            print("No pre-saved memory found for " + self.model_name + " model.")
+            print("No pre-saved memory found.")
 
         self.len_memory = len(self.memory)
 
@@ -37,9 +34,9 @@ class Memory:
             self.len_memory -= diff
 
     def save_memory(self):
-        with open(self.MEMORIES_DIRECTORY + "/" + self.model_name + "_memory.pkl", "wb") as memory_writer:
+        with open("./data/memory.pkl", "wb") as memory_writer:
             pickle.dump(self.memory, memory_writer)
-            print("({}) Memory of " + self.model_name + " model saved.".format(self.len_memory))
+            print("({}) Memory saved.".format(self.len_memory))
 
     def get_experience(self, i):
         return self.memory[i]

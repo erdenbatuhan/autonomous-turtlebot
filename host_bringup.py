@@ -4,15 +4,14 @@ from agent import Agent
 
 
 EPOCH = 5000
-MAX_EPISODE_LENGTH = 500
+MAX_EPISODE_LENGTH = 5000
 
 
 def plot_results(results):
     result_types = {
-        "distance_per_episode": "Distance to Destination",
-        "cumulative_reward_per_episode": "Cumulative Reward",
+        "reach_counts": "Reach Count",
         "steps_per_episode": "Number of Steps",
-        "reach_counts": "Reach Count"
+        "cumulative_reward_per_episode": "Cumulative Reward"
     }
 
     for i in results.keys():

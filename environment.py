@@ -50,8 +50,6 @@ class Environment:
     def depth_image_raw_callback(self, depth_image_raw):
         try:
             self.depth_image_raw = self.bridge.imgmsg_to_cv2(depth_image_raw, "32FC1")
-            cv2.imshow("2", self.depth_image_raw)
-            cv2.waitKey(0)
         except CvBridgeError as e:
             print(e)
 

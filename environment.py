@@ -54,7 +54,7 @@ class Environment:
             print(e)
 
         self.depth_image_raw = np.array(self.depth_image_raw, dtype=np.float32)
-        self.subscriptions_ready[1] = 1
+        self.subscriptions_ready[0] = 1
 
     def subscribe_depth_image_raw(self):
         rospy.Subscriber("/camera/depth/image_raw", Image, self.depth_image_raw_callback)

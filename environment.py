@@ -3,6 +3,7 @@ import util
 import rospy
 import cv2
 import numpy as np
+import image_preprocessor as ipp
 
 from gazebo_msgs.srv import SetModelState
 from gazebo_msgs.msg import ModelState, ModelStates
@@ -61,9 +62,9 @@ class Environment:
 
     def get_state(self):
         # Check if crashed
-        depth = self.depth_image_raw
-
-        if np.average(depth) <= 0.05:
+        depth = ipp.preprocess_image(self.depth_image_raw)
+        
+        if np.average(np.array(depth[0][0])) <= 0.05 / 255:
             self.crashed = True
 
         return depth
@@ -110,8 +111,8 @@ class Environment:
 
     @staticmethod
     def reset_model_state(model_state):
-        model_state.pose.position.x = 0.
-        model_state.pose.position.y = 0.
+        model_state.pose.position.x = 3.
+        model_state.pose.position.y = -3.
         model_state.pose.position.z = 0.
         model_state.pose.orientation.x = 0.
         model_state.pose.orientation.y = 0.

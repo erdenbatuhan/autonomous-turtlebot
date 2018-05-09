@@ -1,9 +1,6 @@
 import cv2
 import numpy as np
 
-import skimage as skimage
-from skimage import transform, color
-
 
 # Stack 4 images to have a better understanding of the velocity
 # img_stack = np.stack((img, img, img, img), axis=1)
@@ -11,16 +8,21 @@ from skimage import transform, color
 
 
 def preprocess_image(img):
-    gray = skimage.color.rgb2gray(img)
-    img_resized = skimage.transform.resize(gray, (80, 80))
+	# Delete the very inner information from the image
+	img = np.reshape(img, (img.shape[0], img.shape[1]))
 
-    cv2.imshow("state", img_resized)
-    cv2.waitKey(0)
+	# Resize the image
+	img = cv2.resize(img, (80, 80))
 
-    # Reshape the image
-    img_reshaped = np.reshape(img, (1, img_resized.shape[0], img_resized.shape[1]))
+	for i in range(0, img.shape[0]):
+		for j in range(0, img.shape[1]):
+			if np.isnan(img[i][j]):
+				img[i][j] = -1
 
-    # Normalize
-    img_normalized = img_reshaped / 255.0
+	# Reshape the image
+	img = np.array([np.array([img])])
 
-    return img_normalized
+	# Normalize
+	img = img / 255.0
+
+	return img

@@ -51,6 +51,7 @@ class HostServer:
         stream = []
         while 1:
             data = self.conn.recv(4096)
+
             if not data:
                 break
 

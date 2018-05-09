@@ -2,13 +2,11 @@ import numpy as np
 
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Flatten
-from keras.layers.convolutional import Convolution2D
+from keras.layers.convolutional import Conv2D
 from keras.optimizers import Adam
 
 from random import random
 from memory import Memory
-
-import image_preprocessor as ipp
 
 
 class Agent:
@@ -27,17 +25,17 @@ class Agent:
     def build_model():
         model = Sequential()
 
-        model.add(Convolution2D(32, 8, 8, subsample=(4, 4), border_mode='same', input_shape=(80, 80)))
+        model.add(Conv2D(32, (8, 8), padding="same", input_shape=(1, 80, 80), strides=(4, 4)))
         model.add(Activation('relu'))
-        model.add(Convolution2D(64, 4, 4, subsample=(2, 2), border_mode='same'))
+        model.add(Conv2D(64, (4, 4), padding="same", strides=(2, 2)))
         model.add(Activation('relu'))
-        model.add(Convolution2D(64, 3, 3, subsample=(1, 1), border_mode='same'))
+        model.add(Conv2D(64, (3, 3), padding="same", strides=(1, 1)))
         model.add(Activation('relu'))
 
         model.add(Flatten())
         model.add(Dense(512))
         model.add(Activation('relu'))
-        model.add(Dense(2))
+        model.add(Dense(5))
 
         adam = Adam(lr=1e-4)
         model.compile(loss='mse', optimizer=adam)
@@ -78,7 +76,7 @@ class Agent:
     def experience_replay(self, batch_size=128):
         len_memory = len(self.memory)
 
-        inputs = np.zeros((min(len_memory, batch_size), 2))
+        inputs = np.zeros((min(len_memory, batch_size), 1, 80, 80))
         targets = np.zeros((inputs.shape[0], 5))
 
         for i, ind in enumerate(np.random.randint(0, len_memory, inputs.shape[0])):
@@ -102,7 +100,6 @@ class Agent:
 
         for episode in range(epoch):
             state = self.server.receive_data()
-            state = ipp.preprocess_image(state)
 
             terminal, crashed = False, False
             cumulative_reward, loss = 0., 0.
@@ -121,7 +118,6 @@ class Agent:
                 self.connector.send_data(int(action))
 
                 next_state, reward, terminal, crashed = self.server.receive_data()
-                next_state = ipp.preprocess_image(next_state)
 
                 cumulative_reward += reward
 
@@ -163,5 +159,5 @@ class Agent:
     def save_results(results, cumulative_reward, step, reach_count):
         results["reach_counts"].append(reach_count)
         results["steps_per_episode"].append(step - 1)
-        results["cumulative_reward_per_episode"]["Safe"].append(cumulative_reward)
+        results["cumulative_reward_per_episode"].append(cumulative_reward)
 

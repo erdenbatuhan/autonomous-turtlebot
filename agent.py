@@ -127,7 +127,7 @@ class Agent:
                 self.memory.remember_experience((state, action, reward, next_state, crashed))
                 loss += self.experience_replay()
 
-                self.report(step, episode, epoch, loss, reach_count, state, action, is_random)
+                self.report(step, episode, epoch, loss, reach_count, action, is_random)
                 state = next_state
 
             self.save_results(results, cumulative_reward, step, reach_count)
@@ -142,10 +142,9 @@ class Agent:
         return results
 
     @staticmethod
-    def report(step, episode, epoch, loss, reach_count, state, action, is_random):
-        print("Step {} Epoch {:03d}/{:03d} | Loss {:.2f} | Reach count {} | State {} "
-              "| Act {} | Random Act {}".format(step, episode, (epoch - 1), loss, reach_count,
-                                                state, (action - 2), is_random))
+    def report(step, episode, epoch, loss, reach_count, action, is_random):
+        print("Step {} Epoch {:03d}/{:03d} | Loss {:.2f} | Reach count {} | Act {} | Random Act {}".
+              format(step, episode, (epoch - 1), loss, reach_count, (action - 2), is_random))
 
     @staticmethod
     def build_results():

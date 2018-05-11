@@ -25,7 +25,7 @@ class Agent:
     def build_model():
         model = Sequential()
 
-        model.add(Conv2D(32, (8, 8), padding="same", input_shape=(1, 80, 80), strides=(4, 4)))
+        model.add(Conv2D(32, (8, 8), padding="same", input_shape=(2, 80, 80), strides=(4, 4)))
         model.add(Activation('relu'))
         model.add(Conv2D(64, (4, 4), padding="same", strides=(2, 2)))
         model.add(Activation('relu'))
@@ -73,10 +73,10 @@ class Agent:
 
         return np.argmax(actions), False
 
-    def experience_replay(self, batch_size=128):
+    def experience_replay(self, batch_size=64):
         len_memory = len(self.memory)
 
-        inputs = np.zeros((min(len_memory, batch_size), 1, 80, 80))
+        inputs = np.zeros((min(len_memory, batch_size), 2, 80, 80))
         targets = np.zeros((inputs.shape[0], 5))
 
         for i, ind in enumerate(np.random.randint(0, len_memory, inputs.shape[0])):
@@ -100,6 +100,7 @@ class Agent:
 
         for episode in range(epoch):
             state = self.server.receive_data()
+            state = state / 255.0
 
             terminal, crashed = False, False
             cumulative_reward, loss = 0., 0.
@@ -118,6 +119,7 @@ class Agent:
                 self.connector.send_data(int(action))
 
                 next_state, reward, terminal, crashed = self.server.receive_data()
+                next_state = next_state / 255.0
 
                 cumulative_reward += reward
 
@@ -127,12 +129,13 @@ class Agent:
                 self.memory.remember_experience((state, action, reward, next_state, crashed))
                 loss += self.experience_replay()
 
-                self.report(step, episode, epoch, loss, reach_count, action, is_random)
+                self.report(step, episode, epoch, reach_count, state, action, is_random)
                 state = next_state
 
             self.save_results(results, cumulative_reward, step, reach_count)
 
             # Save model each 20 rounds
+
             if episode % 20 == 1:
                 self.save_model()
 
@@ -142,9 +145,10 @@ class Agent:
         return results
 
     @staticmethod
-    def report(step, episode, epoch, loss, reach_count, action, is_random):
-        print("Step {} Epoch {:03d}/{:03d} | Loss {:.2f} | Reach count {} | Act {} | Random Act {}".
-              format(step, episode, (epoch - 1), loss, reach_count, (action - 2), is_random))
+    def report(step, episode, epoch, reach_count, state, action, is_random):
+        print("Step {} Epoch {:03d}/{:03d} | Reach count {} | State {}, {} | Act {} | Random Act {}".
+              format(step, episode, (epoch - 1), reach_count, np.average(state[0][0]),  np.average(state[0][1]),
+                     (action - 2), is_random))
 
     @staticmethod
     def build_results():

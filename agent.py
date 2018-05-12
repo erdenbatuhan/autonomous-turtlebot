@@ -79,13 +79,18 @@ class Agent:
             loss += self.experience_replay()
             self.report(step, loss, state, action, is_random)
 
+            state_prev = state
             state = next_state
 
             if step > 0 and step % 100 == 0:
                 self.save_models()
 
             while terminal:
-                self.connector.send_data(0)
+                if state_prev < 0:
+                    self.connector.send_data(0)
+                else:
+                    self.connector.send_data(3)
+
                 state, _, terminal = self.server.receive_data()
 
     @staticmethod

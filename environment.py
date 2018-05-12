@@ -44,6 +44,18 @@ class Environment:
 
         return np.array([state]), terminal
 
+    @staticmethod
+    def get_reward(state, terminal):
+        if terminal:
+            return -1
+        elif -100 <= state[0] <= 100:
+            if -20 <= state[0] <= 20:
+                return 0.25
+
+            return 0.1
+
+        return 0
+
     def act(self, action, v1=0.3):
         vel_cmd = Twist()
 
@@ -63,7 +75,7 @@ class Environment:
         self.rate.sleep()
 
         state, terminal = self.observe()
-        reward = -1 if terminal else 0
+        reward = self.get_reward(state, terminal)
 
         print("State {} | Reward {} | Act {}".format(state, reward, action))
         return state, reward, terminal

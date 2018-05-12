@@ -2,10 +2,6 @@ import host
 from agent import Agent
 
 
-EPOCH = 250
-MAX_EPISODE_LENGTH = 125
-
-
 def main():
     connector = host.HostConnector()
     server = host.HostServer()

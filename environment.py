@@ -22,6 +22,11 @@ class Environment:
         self.vel_pub = rospy.Publisher("/mobile_base/commands/velocity", Twist, queue_size=5)
         self.rate = rospy.Rate(self.ROSPY_FREQUENCY)
 
+        self.image = None
+
+        self.subscribe_rgb_image_raw()
+        self.wait_for_image()
+
     def reset_base(self):
         self.shutdown()
 
@@ -32,11 +37,28 @@ class Environment:
         rospy.sleep(1)
         rospy.loginfo("TurtleBot stopped!")
 
-    @staticmethod
-    def observe():
+    def wait_for_image(self):
+        while self.image is None:
+            pass
+
+    def rgb_image_raw_callback(self, rgb_image_raw):
+        self.image = None
+
+        try:
+            self.image = CvBridge().imgmsg_to_cv2(rgb_image_raw, "bgr8")
+        except CvBridgeError as e:
+            print(e)
+
+        self.image = np.array(self.image, dtype=np.uint8)
+
+    def subscribe_rgb_image_raw(self):
+        rospy.Subscriber("/camera/rgb/image_raw", Image, self.rgb_image_raw_callback)
+
+    def observe(self):
         terminal = False
 
-        image = util.capture_image()
+        # image = util.capture_image()
+        image = self.image
         state = util.process_image(image)
 
         if math.fabs(state) == image.shape[1] / 2:

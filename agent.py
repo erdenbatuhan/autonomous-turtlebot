@@ -86,7 +86,7 @@ class Agent:
                 self.save_models()
 
             while terminal:
-                if state_prev < 0:
+                if state_prev >= 0:
                     self.connector.send_data(0)
                 else:
                     self.connector.send_data(3)

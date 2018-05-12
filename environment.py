@@ -57,8 +57,14 @@ class Environment:
     def observe(self):
         terminal = False
 
+        self.wait_for_image()
+
         # image = util.capture_image()
-        image = self.image
+        try:
+            image = self.image
+        except cv2.error:
+            image = np.zeros((80, 80))
+
         state = util.process_image(image)
 
         if math.fabs(state) == image.shape[1] / 2:

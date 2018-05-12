@@ -6,7 +6,7 @@ def main():
     env = Environment()
     env.reset_base()
 
-    state = env.observe()  # Initial state
+    state, _ = env.observe()  # Initial state
 
     connector = vm.VMConnector()
     server = vm.VMServer()
@@ -19,7 +19,7 @@ def main():
         if action == -1:
             env.reset_base()
 
-            state = env.observe()  # Initial state
+            state, _ = env.observe()  # Initial state
             connector.send_data(state)
         else:
             next_state, reward, terminal = env.act(action)

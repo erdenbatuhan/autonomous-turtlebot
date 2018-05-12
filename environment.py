@@ -42,19 +42,14 @@ class Environment:
         if math.fabs(state) == image.shape[1] / 2:
             terminal = True
 
-        return np.array([state]), terminal
+        return np.array([state]), terminal, (image.shape[1] / 2)
 
     @staticmethod
-    def get_reward(state, terminal):
+    def get_reward(state, terminal, radius):
         if terminal:
             return -1
-        elif -100 <= state[0] <= 100:
-            if -20 <= state[0] <= 20:
-                return 0.25
 
-            return 0.1
-
-        return 0
+        return 1 - (math.fabs(state) / radius)
 
     def act(self, action, v1=0.3):
         vel_cmd = Twist()
@@ -74,8 +69,8 @@ class Environment:
         self.vel_pub.publish(vel_cmd)
         self.rate.sleep()
 
-        state, terminal = self.observe()
-        reward = self.get_reward(state, terminal)
+        state, terminal, radius = self.observe()
+        reward = self.get_reward(state, terminal, radius)
 
         print("State {} | Reward {} | Act {}".format(state, reward, action))
         return state, reward, terminal

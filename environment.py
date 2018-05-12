@@ -62,11 +62,11 @@ class Environment:
 
         terminal = False
 
-	try:
+        try:
             image = util.capture_image()
-	except cv2.error as e:
-	    print(e)
-	    image = np.zeros((80, 80))
+        except cv2.error as e:
+            print(e)
+            image = np.zeros((80, 80))
 
         state = util.process_image(image)
 
@@ -79,10 +79,10 @@ class Environment:
     def get_reward(state, terminal):
         if terminal:
             return -1
-	elif -20 <= state <= 20:
-	    if -5 <= state <= 5:
-	    	return 0.75
-	    return 0.25
+        elif -20 <= state <= 20:
+            if -5 <= state <= 5:
+                return 0.75
+            return 0.25
 
         return 0
 

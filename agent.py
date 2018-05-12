@@ -1,7 +1,6 @@
 import numpy as np
 from random import random
 from model import Model
-from matplotlib import pyplot as plt
 
 
 class Agent:
@@ -9,8 +8,8 @@ class Agent:
     EPSILON = 0.05
 
     def __init__(self, connector, server):
-        self.__connector = connector
-        self.__server = server
+        self.connector = connector
+        self.server = server
 
         self.model = Model(name=None, input_size=1, output_size=4, hidden_size=24, num_layers=2,
                            max_memory=512, learning_rate=0.01, discount_factor=0.95)
@@ -62,69 +61,31 @@ class Agent:
 
         return self.model.models[model_id].train_on_batch(inputs, targets)
 
-    def train(self, epoch, max_episode_length):
+    def train(self):
         self.load_models()
-        results = []
 
-        for episode in range(epoch):
-            state = self.__server.receive_data()
-            step, loss, terminal = 0, 0., False
+        state = self.server.receive_data()
+        step, loss, terminal = 0, 0., False
 
-            while True:
-                step += 1
+        while True:
+            step += 1
 
-                if step > max_episode_length or terminal:
-                    print("Episode {}'s Report -> State {} | Terminal {}".format(episode, state, terminal))
-                    self.__connector.send_data(-1)  # Reset base
+            action, is_random = self.get_next_action(state)
+            self.connector.send_data(int(action))
 
-                    break
+            next_state, reward, terminal = self.server.receive_data()
+            self.model.memory.remember_experience((state, action, reward, next_state, terminal))
 
-                action, is_random = self.get_next_action(state)
-                self.__connector.send_data(int(action))
+            loss += self.experience_replay()
+            self.report(step, loss, state, action, is_random)
 
-                next_state, reward, terminal = self.__server.receive_data()
-                self.model.memory.remember_experience((state, action, reward, next_state, terminal))
+            state = next_state
 
-                loss += self.experience_replay()
-                self.report(step, episode, epoch, loss, state, action, is_random)
-
-                state = next_state
-
-            results.append(step)
-            if episode > 0 and episode % 10 == 0:
+            if step > 0 and step % 100 == 0:
                 self.save_models()
 
-        _ = self.__server.receive_data()
-        self.__connector.send_data(-2)  # Stop simulation
-
-        self.plot(results)
-
     @staticmethod
-    def report(step, episode, epoch, loss, state, action, is_random):
-        print("Step {} Epoch {:03d}/{:03d} | Loss {:.2f} | State {} | Act {} | Random Act {}".
-              format(step, episode, (epoch - 1), loss, state, action, is_random))
-
-    @staticmethod
-    def plot(results):
-        plt.xlabel("Episode")
-        plt.ylabel("Length of Episode")
-
-        plt.plot(results)
-        plt.show()
-
-        plt.gcf().clear()
-
-        results = np.array(results)
-
-        mini_results = []
-        for rhand in range(10, len(results), 10):
-            lhand = len(mini_results)
-            mini_results.append(np.average(results[lhand:rhand]))
-
-        plt.xlabel("10 Episodes (each represents 10 episodes)")
-        plt.ylabel("Average length of 10 Episodes")
-        plt.plot(mini_results)
-        plt.show()
-
-        plt.gcf().clear()
+    def report(step, loss, state, action, is_random):
+        print("Step {} | Loss {:.2f} | State {} | Act {} | Random Act {}".
+              format(step, loss, state, action, is_random))
 

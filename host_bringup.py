@@ -14,7 +14,7 @@ def main():
     print("Listening vm.")
 
     agent = Agent(connector=connector, server=server)
-    agent.train(epoch=EPOCH, max_episode_length=MAX_EPISODE_LENGTH)
+    agent.train()
 
 
 if __name__ == '__main__':

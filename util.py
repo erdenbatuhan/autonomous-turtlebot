@@ -57,9 +57,18 @@ def flatten(state, state_dim):
     return state_flattened
 
 
+def capture_image():
+    cap = cv2.VideoCapture(0)
+
+    _, frame = cap.read()
+    cap.release()
+
+    return frame
+
+
 def process_image(img):
     hsv = cv2.cvtColor(src=img, code=cv2.COLOR_BGR2HSV)
-    mask = cv2.inRange(src=hsv, lowerb=(29, 86, 6), upperb=(64, 255, 255))
+    mask = cv2.inRange(src=hsv, lowerb=(29, 100, 100), upperb=(64, 255, 255))
 
     mask = cv2.erode(src=mask, kernel=None, iterations=2)
     mask = cv2.dilate(src=mask, kernel=None, iterations=2)

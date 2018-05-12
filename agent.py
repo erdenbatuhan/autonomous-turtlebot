@@ -84,6 +84,10 @@ class Agent:
             if step > 0 and step % 100 == 0:
                 self.save_models()
 
+            while terminal:
+                self.connector.send_data(0)
+                state, _, terminal = self.server.receive_data()
+
     @staticmethod
     def report(step, loss, state, action, is_random):
         print("Step {} | Loss {:.2f} | State {} | Act {} | Random Act {}".

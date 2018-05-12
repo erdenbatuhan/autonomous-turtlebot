@@ -53,7 +53,8 @@ class Environment:
     def subscribe_rgb_image_raw(self):
         rospy.Subscriber("/camera/rgb/image_raw", Image, self.rgb_image_raw_callback)
 
-    def observe(self):
+    @staticmethod
+    def observe():
         # self.wait_for_image()
         # try:
         #     image = self.image

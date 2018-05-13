@@ -43,7 +43,7 @@ def main():
     print("Listening vm.")
 
     agent = Agent(connector=connector, server=server)
-    results = agent.train(epoch=EPOCH, max_episode_length=MAX_EPISODE_LENGTH)
+    results = agent.train()
 
     plot_results(results=results)
 

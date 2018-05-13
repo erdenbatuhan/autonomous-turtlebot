@@ -96,6 +96,8 @@ class Agent:
         self.load_model()
 
         state = self.server.receive_data()
+        state = state / 255.0
+
         step, loss, crashed = 0, 0., False
 
         while True:
@@ -105,6 +107,7 @@ class Agent:
             self.connector.send_data(int(action))
 
             next_state, reward, _, crashed = self.server.receive_data()
+            next_state = next_state / 255.0
 
             self.memory.remember_experience((state, action, reward, next_state, crashed))
             loss += self.experience_replay()
@@ -114,7 +117,9 @@ class Agent:
 
             if crashed:
                 self.connector.send_data(5)
+
                 state, _, _, _ = self.server.receive_data()
+                state = state / 255.0
 
             if step > 0 and step % 100 == 0:
                 self.save_model()

@@ -22,7 +22,4 @@ def preprocess_image(img):
 	# Reshape the image
 	img = np.array([np.array([img])])
 
-	# Normalize
-	img = img / 255.0
-
 	return img

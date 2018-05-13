@@ -5,8 +5,6 @@ import cv2
 import numpy as np
 import image_preprocessor as ipp
 
-from gazebo_msgs.srv import SetModelState
-from gazebo_msgs.msg import ModelState, ModelStates
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
@@ -17,16 +15,17 @@ class Environment:
     ROSPY_FREQUENCY = 10
     NUM_OF_SUBSCRIPTIONS = 1
 
-    def __init__(self, base_name):
+    def __init__(self):
         rospy.init_node("Environment", anonymous=False)
         rospy.loginfo("CTRL + C to terminate..")
+
         rospy.on_shutdown(self.shutdown)
 
         self.vel_pub = rospy.Publisher("/mobile_base/commands/velocity", Twist, queue_size=5)
         self.rate = rospy.Rate(self.ROSPY_FREQUENCY)
+
         self.bridge = CvBridge()
         self.initial_time = time.time()
-        self.base_name = base_name
 
         self.depth_image_raw = None
         self.terminal = False
@@ -109,32 +108,7 @@ class Environment:
         print("State {} | Reward {} | Act {}".format(state, reward, (action - 2)))
         return state, reward, self.terminal, self.crashed
 
-    @staticmethod
-    def reset_model_state(model_state):
-        model_state.pose.position.x = 3.
-        model_state.pose.position.y = -3.
-        model_state.pose.position.z = 0.
-        model_state.pose.orientation.x = 0.
-        model_state.pose.orientation.y = 0.
-        model_state.pose.orientation.z = 0.
-        model_state.pose.orientation.w = 0.
-        model_state.twist.linear.x = 0.
-        model_state.twist.linear.y = 0.
-        model_state.twist.linear.z = 0.
-        model_state.twist.angular.x = 0.
-        model_state.twist.angular.y = 0.
-        model_state.twist.angular.z = 0.
-
     def reset_base(self):
-        rospy.wait_for_service("/gazebo/set_model_state")
-        set_model_state = rospy.ServiceProxy("/gazebo/set_model_state", SetModelState)
-
-        model_state = ModelState()
-        model_state.model_name = self.base_name
-
-        self.reset_model_state(model_state)
-        set_model_state(model_state)
-
         self.shutdown()
 
         self.terminal = False

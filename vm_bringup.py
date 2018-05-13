@@ -2,11 +2,8 @@ import vm
 from environment import Environment
 
 
-BASE_NAME = "mobile_base"
-
-
 def main():
-    env = Environment(base_name=BASE_NAME)
+    env = Environment()
     env.reset_base()
 
     state = env.get_state()  # Initial state

@@ -92,71 +92,31 @@ class Agent:
 
         return self.model.train_on_batch(inputs, targets)
 
-    def train(self, epoch, max_episode_length):
+    def train(self):
         self.load_model()
 
-        reach_count = 0
-        results = self.build_results()
+        state = self.server.receive_data()
+        step, loss, crashed = 0, 0., False
 
-        for episode in range(epoch):
-            state = self.server.receive_data()
+        while True:
+            step += 1
 
-            terminal, crashed = False, False
-            cumulative_reward, loss = 0., 0.
+            action, is_random = self.get_next_action(state)
+            self.connector.send_data(int(action))
 
-            step = 0
-            while True:
-                step += 1
-                if step > max_episode_length or crashed or terminal:
-                    print("Episode {}'s Report -> State {} | Crashed {} | Terminal {}".
-                          format(episode, state, crashed, terminal))
-                    self.connector.send_data(-1)  # Reset base
+            next_state, reward, _, crashed = self.server.receive_data()
 
-                    break
+            self.memory.remember_experience((state, action, reward, next_state, crashed))
+            loss += self.experience_replay()
 
-                action, is_random = self.get_next_action(state)
-                self.connector.send_data(int(action))
+            self.report(step, loss, reach_count, action, is_random)
+            state = next_state
 
-                next_state, reward, terminal, crashed = self.server.receive_data()
-
-                cumulative_reward += reward
-
-                if terminal:
-                    reach_count += 1
-
-                self.memory.remember_experience((state, action, reward, next_state, crashed))
-                loss += self.experience_replay()
-
-                self.report(step, episode, epoch, loss, reach_count, action, is_random)
-                state = next_state
-
-            self.save_results(results, cumulative_reward, step, reach_count)
-
-            # Save model each 20 rounds
-            if episode % 20 == 1:
+            if step > 0 and step % 100 == 0:
                 self.save_model()
 
-        _ = self.server.receive_data()
-        self.connector.send_data(-2)  # Stop simulation
-
-        return results
-
     @staticmethod
-    def report(step, episode, epoch, loss, reach_count, action, is_random):
-        print("Step {} Epoch {:03d}/{:03d} | Loss {:.2f} | Reach count {} | Act {} | Random Act {}".
+    def report(step, loss, reach_count, action, is_random):
+        print("Step {} | Loss {:.2f} | Reach count {} | Act {} | Random Act {}".
               format(step, episode, (epoch - 1), loss, reach_count, (action - 2), is_random))
-
-    @staticmethod
-    def build_results():
-        return {
-            "reach_counts": [],
-            "steps_per_episode": [],
-            "cumulative_reward_per_episode": []
-        }
-
-    @staticmethod
-    def save_results(results, cumulative_reward, step, reach_count):
-        results["reach_counts"].append(reach_count)
-        results["steps_per_episode"].append(step - 1)
-        results["cumulative_reward_per_episode"].append(cumulative_reward)
 

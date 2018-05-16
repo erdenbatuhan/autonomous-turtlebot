@@ -14,7 +14,7 @@ from memory import Memory
 class Agent:
 
     EPSILON = 1
-    EXPLORATION_RATE = 0.001  # NO EXPLORATION!
+    EXPLORATION_RATE = 1  # NO EXPLORATION!
     EPSILON_LOWEST = 0
     GAMMA = 0.99
 

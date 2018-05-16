@@ -137,7 +137,7 @@ class Environment:
         if self.crashed:
             return -1
 
-        return 0
+        return 0.1
 
     def act(self, action, v1=0.3, v2=0.05):
         vel_cmd = Twist()

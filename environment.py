@@ -142,22 +142,34 @@ class Environment:
     def act(self, action, v1=0.3, v2=0.05):
         vel_cmd = Twist()
 
-        if action == 0:  # LEFT
-            vel_cmd.linear.x = v1 - v2
+        if action == 0:  # WAAAY MORE LEFT
+            vel_cmd.linear.x = (v1 - v2) * .25
+            vel_cmd.angular.z = 4. * v1
+        if action == 1:  # MORE LEFT
+            vel_cmd.linear.x = (v1 - v2) * .50
+            vel_cmd.angular.z = 3. * v1
+        elif action == 2:  # LEFT
+            vel_cmd.linear.x = (v1 - v2) * .75
             vel_cmd.angular.z = 2. * v1
-        elif action == 1:  # FORWARD - LEFT
+        elif action == 3:  # FORWARD - LEFT
             vel_cmd.linear.x = v1 - v2
             vel_cmd.angular.z = v1
-        elif action == 2:  # FORWARD - AHEAD
+        elif action == 4:  # FORWARD - AHEAD
             vel_cmd.linear.x = 2. * (v1 - v2)
             vel_cmd.angular.z = 0.
-        elif action == 3:  # FORWARD - RIGHT
+        elif action == 5:  # FORWARD - RIGHT
             vel_cmd.linear.x = v1 - v2
             vel_cmd.angular.z = -v1
-        elif action == 4:  # RIGHT
-            vel_cmd.linear.x = v1 - v2
+        elif action == 6:  # RIGHT
+            vel_cmd.linear.x = (v1 - v2) * .75
             vel_cmd.angular.z = -2. * v1
-        elif action == 5:  # BACK
+        elif action == 7:  # MORE RIGHT
+            vel_cmd.linear.x = (v1 - v2) * .50
+            vel_cmd.angular.z = -3. * v1
+        if action == 8:  # WAAAY MORE RIGHT
+            vel_cmd.linear.x = (v1 - v2) * .25
+            vel_cmd.angular.z = -4. * v1
+        elif action == 9:  # BACK
             vel_cmd.linear.x = -30. * (v1 - v2)
             vel_cmd.angular.z = -5. * v1
 

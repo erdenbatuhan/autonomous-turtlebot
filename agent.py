@@ -14,7 +14,7 @@ from memory import Memory
 class Agent:
 
     EPSILON = 1
-    EXPLORATION_RATE = 1  # NO EXPLORATION!
+    EXPLORATION_RATE = 0.01  # NO EXPLORATION!
     EPSILON_LOWEST = 0
     GAMMA = 0.99
 
@@ -39,7 +39,7 @@ class Agent:
         model.add(Flatten())
         model.add(Dense(512))
         model.add(Activation('relu'))
-        model.add(Dense(5))
+        model.add(Dense(9))
 
         adam = Adam(lr=1e-4)
         model.compile(loss='mse', optimizer=adam)
@@ -62,7 +62,7 @@ class Agent:
 
     def get_random_action(self):
         if np.random.rand() <= self.EPSILON:
-            return np.random.randint(0, 5, size=1)[0]
+            return np.random.randint(0, 9, size=1)[0]
 
         return None
 
@@ -81,7 +81,7 @@ class Agent:
         len_memory = len(self.memory)
 
         inputs = np.zeros((min(len_memory, batch_size), 1, 80, 80))
-        targets = np.zeros((inputs.shape[0], 5))
+        targets = np.zeros((inputs.shape[0], 9))
 
         for i, ind in enumerate(np.random.randint(0, len_memory, inputs.shape[0])):
             state, action, reward, next_state, done = self.memory.get_experience(ind)
@@ -119,7 +119,7 @@ class Agent:
             state = next_state
 
             if crashed:
-                self.connector.send_data(5)
+                self.connector.send_data(9)
                 time.sleep(3)
                 state, _, _, crashed = self.server.receive_data()
 
@@ -135,5 +135,5 @@ class Agent:
 
     def report(self, step, action, is_random, crashed):
         print("Epsilon {} | Step {} | Act {} | Random Act {} | Crashed {}".
-              format(self.EPSILON, step, (action - 2), is_random, crashed))
+              format(self.EPSILON, step, (action - 3), is_random, crashed))
 

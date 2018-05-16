@@ -98,6 +98,8 @@ class Agent:
         state = self.server.receive_data()
         step, loss, crashed = 0, 0., False
 
+        exit(0)
+
         while True:
             step += 1
 
@@ -116,8 +118,8 @@ class Agent:
                 self.connector.send_data(5)
                 state, _, _, _ = self.server.receive_data()
 
-            if step > 0 and step % 100 == 0:
-                self.save_model()
+            # if step > 0 and step % 100 == 0:
+            #   self.save_model()
 
     @staticmethod
     def report(step, loss, reach_count, action, is_random):

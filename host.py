@@ -5,6 +5,8 @@ except ImportError:
 
 import socket
 import pickle
+import numpy as np
+from io import BytesIO  # Python 3
 
 
 class HostConnector:
@@ -47,15 +49,19 @@ class HostServer:
 
     def receive_data(self):
         self.conn, self.addr = self.listen_socket.accept()
+        ultimate_buffer = b''
 
-        stream = []
-        while 1:
-            data = self.conn.recv(4096)
-
-            if not data:
+        while True:
+            receiving_buffer = self.conn.recv(1024)
+            if not receiving_buffer:
                 break
 
-            stream.append(data)
+            ultimate_buffer += receiving_buffer
 
-        return pickle.loads(b"".join(stream), encoding='latin1')
+        final_buffer = np.load(BytesIO(ultimate_buffer))['frame']
+
+        for i in range(0, 80):
+            print(np.average(final_buffer[0][0][i]))
+
+        return final_buffer
 

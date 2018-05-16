@@ -29,14 +29,16 @@ class Environment:
         self.initial_time = time.time()
 
         self.points = None
+        self.image = None
         self.depth_image_raw = None
         self.terminal = False
         self.crashed = False
 
         self.subscriptions_ready = np.zeros(self.NUM_OF_SUBSCRIPTIONS)
-        self.subscribe_point_cloud()
+        self.subscribe_rgb_image_raw()
         #self.subscribe_depth_image_raw()
         self.subscribe_core_sensors()
+        #self.subscribe_point_cloud()
 
         self.wait_for_subscriptions()
 
@@ -50,6 +52,20 @@ class Environment:
     def wait_for_subscriptions(self):
         while np.sum(self.subscriptions_ready) < self.NUM_OF_SUBSCRIPTIONS:
             pass
+
+    def rgb_image_raw_callback(self, rgb_image_raw):
+        self.image = None
+
+        try:
+            self.image = self.rgb_bridge.imgmsg_to_cv2(rgb_image_raw, "bgr8")
+        except CvBridgeError as e:
+            print(e)
+
+        self.image = np.array(self.image, dtype=np.uint8)
+        self.subscriptions_ready[0] = 1
+
+    def subscribe_rgb_image_raw(self):
+        rospy.Subscriber("/camera/rgb/image_raw", Image, self.rgb_image_raw_callback)
 
     def depth_image_raw_callback(self, depth_image_raw):
         try:
@@ -88,6 +104,16 @@ class Environment:
         rospy.Subscriber("/camera/depth/points", PointCloud2, self.point_cloud_callback)
 
     def get_state(self):
+        image = np.zeros((80, 80))
+
+        try:
+            image = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
+            image = util.preprocess_image(image)
+        except cv2.error as e:
+            print(e)
+
+        return np.array([np.array([image])])
+
         '''
         image = np.zeros((80, 80))
 
@@ -104,7 +130,7 @@ class Environment:
 
         #return state
 
-        return np.array([np.array([self.points])])
+        #return np.array([np.array([self.points])])
 
     def get_reward(self):
         if self.crashed:

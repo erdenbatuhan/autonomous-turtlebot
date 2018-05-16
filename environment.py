@@ -79,7 +79,7 @@ class Environment:
 
         for i in range(0, 80):
             for j in range(0, 80):
-                if np.isnan(img[0][0][i][j]):
+                if np.isnan(self.points[0][0][i][j]):
                     self.points[0][0][i][j] = 0
 
         self.subscriptions_ready[0] = 1

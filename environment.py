@@ -75,8 +75,6 @@ class Environment:
             self.crashed = True
 
         state = np.array([np.array([image, depth])])
-        print(state.shape)
-        exit(0)
         return state
 
     def get_reward(self):

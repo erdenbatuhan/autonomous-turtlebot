@@ -1,5 +1,6 @@
 import numpy as np
 import time
+import pickle as pkl
 
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Flatten
@@ -97,6 +98,7 @@ class Agent:
         return self.model.train_on_batch(inputs, targets)
 
     def train(self):
+        steps = []
         self.load_model()
 
         state = self.server.receive_data()
@@ -121,8 +123,15 @@ class Agent:
                 time.sleep(3)
                 state, _, _, crashed = self.server.receive_data()
 
+                steps.append(step)
+                step = 0.
+
             if step > 0 and step % 100 == 0:
                 self.save_model()
+
+                output = open("./data/steps.pkl", "wb")
+                pkl.dump(steps, output)
+                output.close()
 
     def report(self, step, action, is_random, crashed):
         print("Epsilon {} | Step {} | Act {} | Random Act {} | Crashed {}".

@@ -57,7 +57,7 @@ class Environment:
         self.image = None
 
         try:
-            self.image = self.rgb_bridge.imgmsg_to_cv2(rgb_image_raw, "bgr8")
+            self.image = self.bridge.imgmsg_to_cv2(rgb_image_raw, "bgr8")
         except CvBridgeError as e:
             print(e)
 

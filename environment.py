@@ -99,7 +99,7 @@ class Environment:
         #return state
 
         self.wait_for_subscriptions()
-        return np.array([self.points])
+        return np.array([np.array([self.points])])
 
     def get_reward(self):
         if self.crashed:

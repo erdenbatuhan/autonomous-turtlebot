@@ -98,8 +98,6 @@ class Agent:
         state = self.server.receive_data()
         step, loss, crashed = 0, 0., False
 
-        exit(0)
-
         while True:
             step += 1
 

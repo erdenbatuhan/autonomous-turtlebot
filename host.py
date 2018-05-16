@@ -58,10 +58,7 @@ class HostServer:
 
             ultimate_buffer += receiving_buffer
 
-        final_buffer = np.load(BytesIO(ultimate_buffer))['frame']
-
-        for i in range(0, 80):
-            print(np.average(final_buffer[0][0][i]))
+        final_buffer = np.load(BytesIO(ultimate_buffer), encoding='latin1')['frame']
 
         return final_buffer
 

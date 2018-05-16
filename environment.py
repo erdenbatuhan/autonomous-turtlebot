@@ -6,6 +6,7 @@ import numpy as np
 
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Image
+from kobuki_msgs.msg import SensorState
 from cv_bridge import CvBridge, CvBridgeError
 
 
@@ -32,6 +33,7 @@ class Environment:
 
         self.subscriptions_ready = np.zeros(self.NUM_OF_SUBSCRIPTIONS)
         self.subscribe_depth_image_raw()
+        self.subscribe_bumber_event()
 
         self.wait_for_subscriptions()
 
@@ -58,6 +60,12 @@ class Environment:
 
     def subscribe_depth_image_raw(self):
         rospy.Subscriber("/camera/depth/image_raw", Image, self.depth_image_raw_callback)
+
+    def bumper_callback(self, bumper_event):
+        print(bumper_event)
+
+    def subscribe_bumber_event(self):
+        rospy.Subscriber("/mobile_base/sensors/core/bumps_wheeldrops", SensorState, self.bumper_callback)
 
     def get_state(self):
         image = np.zeros((80, 80))

@@ -116,6 +116,7 @@ class Agent:
 
             if crashed:
                 self.connector.send_data(5)
+                time.sleep(5)
                 state, _, _, crashed = self.server.receive_data()
 
             if step > 0 and step % 100 == 0:

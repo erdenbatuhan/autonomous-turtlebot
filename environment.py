@@ -3,7 +3,6 @@ import util
 import rospy
 import cv2
 import numpy as np
-import image_preprocessor as ipp
 
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Image
@@ -61,13 +60,24 @@ class Environment:
         rospy.Subscriber("/camera/depth/image_raw", Image, self.depth_image_raw_callback)
 
     def get_state(self):
-        # Check if crashed
-        depth = ipp.preprocess_image(self.depth_image_raw)
+        image = np.zeros((80, 80))
+
+        try:
+            image = util.capture_image()
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            image = util.preprocess_image(image)
+        except cv2.error as e:
+            print(e)
+
+        depth = util.preprocess_image(self.depth_image_raw)
         
         if np.average(np.array(depth[0][0])) <= 0.05 / 255:
             self.crashed = True
 
-        return depth
+        state = np.array([np.array([image, depth])])
+        print(state.shape)
+        exit(0)
+        return state
 
     def get_reward(self):
         if self.crashed:

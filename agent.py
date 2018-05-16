@@ -109,7 +109,7 @@ class Agent:
             self.memory.remember_experience((state, action, reward, next_state, crashed))
             loss += self.experience_replay()
 
-            self.report(step, action, is_random)
+            self.report(step, action, is_random, crashed)
             state = next_state
 
             while crashed:
@@ -120,7 +120,7 @@ class Agent:
                 self.save_model()
 
     @staticmethod
-    def report(step, action, is_random):
-        print("Step {} | Act {} | Random Act {}".
-              format(step, (action - 2), is_random))
+    def report(step, action, is_random, crashed):
+        print("Step {} | Act {} | Random Act {} | Crashed {}".
+              format(step, (action - 2), is_random, crashed))
 

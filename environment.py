@@ -71,7 +71,7 @@ class Environment:
 
         depth = util.preprocess_image(self.depth_image_raw)
         
-        if np.average(np.array(depth[0][0])) <= 0.05 / 255:
+        if np.average(np.array(depth[0][0])) * 255 <= 0.05:
             self.crashed = True
         else:
             self.crashed = False

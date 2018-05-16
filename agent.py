@@ -25,7 +25,7 @@ class Agent:
     def build_model():
         model = Sequential()
 
-        model.add(Conv2D(32, (8, 8), padding="same", input_shape=(2, 80, 80), strides=(4, 4)))
+        model.add(Conv2D(32, (8, 8), padding="same", input_shape=(1, 80, 80), strides=(4, 4)))
         model.add(Activation('relu'))
         model.add(Conv2D(64, (4, 4), padding="same", strides=(2, 2)))
         model.add(Activation('relu'))
@@ -76,7 +76,7 @@ class Agent:
     def experience_replay(self, batch_size=128):
         len_memory = len(self.memory)
 
-        inputs = np.zeros((min(len_memory, batch_size), 2, 80, 80))
+        inputs = np.zeros((min(len_memory, batch_size), 1, 80, 80))
         targets = np.zeros((inputs.shape[0], 5))
 
         for i, ind in enumerate(np.random.randint(0, len_memory, inputs.shape[0])):

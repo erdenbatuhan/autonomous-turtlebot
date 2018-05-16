@@ -69,6 +69,7 @@ class Environment:
         rospy.Subscriber("/mobile_base/sensors/core", TurtlebotSensorState, self.core_sensor_callback)
 
     def get_state(self):
+        '''
         image = np.zeros((80, 80))
 
         try:
@@ -77,9 +78,10 @@ class Environment:
             image = util.preprocess_image(image)
         except cv2.error as e:
             print(e)
+        '''
 
         depth = util.preprocess_image(self.depth_image_raw)
-        state = np.array([np.array([image, depth])])
+        state = np.array([np.array([depth])])
 
         return state
 
@@ -108,7 +110,7 @@ class Environment:
             vel_cmd.linear.x = v1 - v2
             vel_cmd.angular.z = -2. * v1
         elif action == 5:  # BACK
-            vel_cmd.linear.x = -5. * (v1 - v2)
+            vel_cmd.linear.x = -30. * (v1 - v2)
             vel_cmd.angular.z = 0.
 
         if rospy.is_shutdown():

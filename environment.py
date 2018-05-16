@@ -79,13 +79,8 @@ class Environment:
             print(e)
 
         depth = util.preprocess_image(self.depth_image_raw)
-        
-        if np.average(np.array(depth[0][0])) * 255 <= 0.05:
-            self.crashed = True
-        else:
-            self.crashed = False
-
         state = np.array([np.array([image, depth])])
+
         return state
 
     def get_reward(self):

@@ -89,7 +89,7 @@ class Environment:
         if self.crashed:
             return -1
 
-        return 0.1
+        return 0
 
     def act(self, action, v1=0.3, v2=0.05):
         vel_cmd = Twist()
@@ -111,7 +111,7 @@ class Environment:
             vel_cmd.angular.z = -2. * v1
         elif action == 5:  # BACK
             vel_cmd.linear.x = -30. * (v1 - v2)
-            vel_cmd.angular.z = 0.
+            vel_cmd.angular.z = -5. * v1
 
         if rospy.is_shutdown():
             return

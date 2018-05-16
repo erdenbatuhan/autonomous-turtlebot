@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Flatten
@@ -11,7 +12,9 @@ from memory import Memory
 
 class Agent:
 
-    EPSILON = 0.05
+    EPSILON = 1
+    EXPLORATION_RATE = 0.001
+    EPSILON_LOWEST = 0
     GAMMA = 0.99
 
     def __init__(self, connector, server):
@@ -57,9 +60,7 @@ class Agent:
         print("Model saved.")
 
     def get_random_action(self):
-        epsilon_multiplier = 1. if random() < 0.5 else 2.  # Dice rolled
-
-        if np.random.rand() <= (self.EPSILON * epsilon_multiplier):
+        if np.random.rand() <= self.EPSILON:
             return np.random.randint(0, 5, size=1)[0]
 
         return None
@@ -90,6 +91,7 @@ class Agent:
             else:
                 targets[i, action] = reward + self.GAMMA * np.max(self.model.predict(next_state)[0])
 
+        self.EPSILON = self.EPSILON - self.EXPLORATION_RATE
         return self.model.train_on_batch(inputs, targets)
 
     def train(self):
@@ -112,15 +114,14 @@ class Agent:
             self.report(step, action, is_random, crashed)
             state = next_state
 
-            while crashed:
+            if crashed:
                 self.connector.send_data(5)
                 state, _, _, crashed = self.server.receive_data()
 
             if step > 0 and step % 100 == 0:
                 self.save_model()
 
-    @staticmethod
-    def report(step, action, is_random, crashed):
-        print("Step {} | Act {} | Random Act {} | Crashed {}".
-              format(step, (action - 2), is_random, crashed))
+    def report(self, step, action, is_random, crashed):
+        print("Epsilon {} | Step {} | Act {} | Random Act {} | Crashed {}".
+              format(self.EPSILON, step, (action - 2), is_random, crashed))
 

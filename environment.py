@@ -73,6 +73,8 @@ class Environment:
         
         if np.average(np.array(depth[0][0])) <= 0.05 / 255:
             self.crashed = True
+        else:
+            self.crashed = False
 
         state = np.array([np.array([image, depth])])
         return state

@@ -112,12 +112,12 @@ class Agent:
             self.report(step, action, is_random)
             state = next_state
 
-            # if crashed:
-            #    self.connector.send_data(5)
-            #    state, _, _, _ = self.server.receive_data()
+            while crashed:
+                self.connector.send_data(5)
+                state, _, _, crashed = self.server.receive_data()
 
-            # if step > 0 and step % 100 == 0:
-            #   self.save_model()
+            if step > 0 and step % 100 == 0:
+                self.save_model()
 
     @staticmethod
     def report(step, action, is_random):

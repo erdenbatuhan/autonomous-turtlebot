@@ -73,11 +73,6 @@ def preprocess_image(img):
     # Resize the image
     img = cv2.resize(img, (80, 80))
 
-    for i in range(0, img.shape[0]):
-        for j in range(0, img.shape[1]):
-            if np.isnan(img[i][j]):
-                img[i][j] = -1
-
     return img
 
 

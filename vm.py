@@ -26,13 +26,13 @@ class VMConnector:
     def send_data(self, data):
         self.connect_to_target()
 
-	f = StringIO()
-	np.savez_compressed(f, frame=data)
-	f.seek(0)
-	out = f.read()
+        f = StringIO()
+        np.savez_compressed(f, frame=data)
+        f.seek(0)
+        out = f.read()
 
-	self.target_socket.sendall(out)
-	self.target_socket.shutdown(1)
+        self.target_socket.sendall(out)
+        self.target_socket.shutdown(1)
         self.target_socket.close()
 
 
@@ -56,12 +56,12 @@ class VMServer:
 
         stream = []
         while 1:
-        	data = self.conn.recv(1684)
-        	if not data:
-        		break
+            data = self.conn.recv(1684)
+            if not data:
+                break
 
-        	stream.append(data)
+            stream.append(data)
 
-	return pickle.loads(b"".join(stream))
+        return pickle.loads(b"".join(stream))
 
 

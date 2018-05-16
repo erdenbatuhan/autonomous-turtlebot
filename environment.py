@@ -6,7 +6,7 @@ import numpy as np
 
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Image
-from kobuki_msgs.msg import SensorState
+from create_node.msg import TurtlebotSensorState
 from cv_bridge import CvBridge, CvBridgeError
 
 
@@ -65,7 +65,7 @@ class Environment:
         print(sensor_state.bumps_wheeldrops)
 
     def subscribe_core_sensors(self):
-        rospy.Subscriber("/mobile_base/sensors/core", SensorState, self.core_sensor_callback)
+        rospy.Subscriber("/mobile_base/sensors/core", TurtlebotSensorState, self.core_sensor_callback)
 
     def get_state(self):
         image = np.zeros((80, 80))

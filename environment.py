@@ -49,12 +49,13 @@ class Environment:
 
     def depth_image_raw_callback(self, depth_image_raw):
         try:
-            self.depth_image_raw = self.bridge.imgmsg_to_cv2(depth_image_raw, "32FC1")
+            self.depth_image_raw = self.bridge.imgmsg_to_cv2(depth_image_raw, "passthrough")
+            self.depth_image_raw = np.array(self.depth_image_raw, dtype=np.float32)
+
+            cv2.normalize(self.depth_image_raw, self.depth_image_raw, 0, 1, cv2.NORM_MINMAX)
+            self.subscriptions_ready[0] = 1
         except CvBridgeError as e:
             print(e)
-
-        self.depth_image_raw = np.array(self.depth_image_raw, dtype=np.float32)
-        self.subscriptions_ready[0] = 1
 
     def subscribe_depth_image_raw(self):
         rospy.Subscriber("/camera/depth/image_raw", Image, self.depth_image_raw_callback)

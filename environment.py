@@ -64,7 +64,7 @@ class Environment:
         depth = ipp.preprocess_image(self.depth_image_raw)
         
         if np.average(np.array(depth[0][0])) <= 0.05 / 255:
-            self.crashed = True
+        	self.crashed = True
 
         return depth
 

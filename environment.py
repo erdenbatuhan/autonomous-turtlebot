@@ -77,6 +77,11 @@ class Environment:
         self.points = np.reshape(self.points, (640, 640))
         self.points = np.resize(self.points, (80, 80))
 
+        for i in range(0, 80):
+            for j in range(0, 80):
+                if np.isnan(img[0][0][i][j]):
+                    self.points[0][0][i][j] = 0
+
         self.subscriptions_ready[0] = 1
 
     def subscribe_point_cloud(self):

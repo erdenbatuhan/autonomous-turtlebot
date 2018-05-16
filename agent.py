@@ -13,7 +13,7 @@ from memory import Memory
 class Agent:
 
     EPSILON = 1
-    EXPLORATION_RATE = 1  # NO EXPLORATION!
+    EXPLORATION_RATE = 0.001  # NO EXPLORATION!
     EPSILON_LOWEST = 0
     GAMMA = 0.99
 
@@ -69,12 +69,14 @@ class Agent:
         random_action = self.get_random_action()
         actions = self.model.predict(state)[0]
 
+        print(actions)
+
         if random_action is not None:
             return random_action, True
 
         return np.argmax(actions), False
 
-    def experience_replay(self, batch_size=128):
+    def experience_replay(self, batch_size=64):
         len_memory = len(self.memory)
 
         inputs = np.zeros((min(len_memory, batch_size), 1, 80, 80))
@@ -116,7 +118,7 @@ class Agent:
 
             if crashed:
                 self.connector.send_data(5)
-                time.sleep(5)
+                time.sleep(3)
                 state, _, _, crashed = self.server.receive_data()
 
             if step > 0 and step % 100 == 0:

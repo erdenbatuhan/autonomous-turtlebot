@@ -143,13 +143,13 @@ class Environment:
         vel_cmd = Twist()
 
         if action == 0:  # WAAAY MORE LEFT
-            vel_cmd.linear.x = (v1 - v2) * .25
+            vel_cmd.linear.x = v1 - v2
             vel_cmd.angular.z = 4. * v1
         if action == 1:  # MORE LEFT
-            vel_cmd.linear.x = (v1 - v2) * .50
+            vel_cmd.linear.x = v1 - v2
             vel_cmd.angular.z = 3. * v1
         elif action == 2:  # LEFT
-            vel_cmd.linear.x = (v1 - v2) * .75
+            vel_cmd.linear.x = v1 - v2
             vel_cmd.angular.z = 2. * v1
         elif action == 3:  # FORWARD - LEFT
             vel_cmd.linear.x = v1 - v2
@@ -161,13 +161,13 @@ class Environment:
             vel_cmd.linear.x = v1 - v2
             vel_cmd.angular.z = -v1
         elif action == 6:  # RIGHT
-            vel_cmd.linear.x = (v1 - v2) * .75
+            vel_cmd.linear.x = v1 - v2
             vel_cmd.angular.z = -2. * v1
         elif action == 7:  # MORE RIGHT
-            vel_cmd.linear.x = (v1 - v2) * .50
+            vel_cmd.linear.x = v1 - v2
             vel_cmd.angular.z = -3. * v1
         if action == 8:  # WAAAY MORE RIGHT
-            vel_cmd.linear.x = (v1 - v2) * .25
+            vel_cmd.linear.x = v1 - v2
             vel_cmd.angular.z = -4. * v1
         elif action == 9:  # BACK
             vel_cmd.linear.x = -30. * (v1 - v2)

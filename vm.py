@@ -56,7 +56,7 @@ class VMServer:
 
         stream = []
         while 1:
-            data = self.conn.recv(1684)
+            data = self.conn.recv(4096)
             if not data:
                 break
 

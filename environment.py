@@ -75,6 +75,7 @@ class Environment:
         dtype_list = [(f.name, np.float32) for f in cloud_msg.fields]
         self.points = np.fromstring(cloud_msg.data, dtype_list)
         self.points = np.reshape(self.points, (640, 640))
+        self.points = cv2.resize(self.points, (80, 80))
 
         self.subscriptions_ready[0] = 1
 

@@ -7,6 +7,7 @@ import numpy as np
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Image
 from create_node.msg import TurtlebotSensorState
+from sensor_msgs.msg import PointCloud2
 from cv_bridge import CvBridge, CvBridgeError
 
 
@@ -27,12 +28,14 @@ class Environment:
         self.bridge = CvBridge()
         self.initial_time = time.time()
 
+        self.points = None
         self.depth_image_raw = None
         self.terminal = False
         self.crashed = False
 
         self.subscriptions_ready = np.zeros(self.NUM_OF_SUBSCRIPTIONS)
-        self.subscribe_depth_image_raw()
+        self.subscribe_point_cloud()
+        #self.subscribe_depth_image_raw()
         self.subscribe_core_sensors()
 
         self.wait_for_subscriptions()
@@ -68,6 +71,16 @@ class Environment:
     def subscribe_core_sensors(self):
         rospy.Subscriber("/mobile_base/sensors/core", TurtlebotSensorState, self.core_sensor_callback)
 
+    def point_cloud_callback(self, cloud_msg):
+        dtype_list = [(f.name, np.float32) for f in cloud_msg.fields]
+        self.points = np.fromstring(cloud_msg.data, dtype_list)
+        self.points = np.reshape(self.points, (640, 640))
+
+        self.subscriptions_ready[0] = 1
+
+    def subscribe_point_cloud(self):
+        rospy.Subscriber("/camera/depth/points", PointCloud2, self.point_cloud_callback)
+
     def get_state(self):
         '''
         image = np.zeros((80, 80))
@@ -80,10 +93,13 @@ class Environment:
             print(e)
         '''
 
-        depth = util.preprocess_image(self.depth_image_raw)
-        state = np.array([np.array([depth])])
+        #depth = util.preprocess_image(self.depth_image_raw)
+        #state = np.array([np.array([depth])])
 
-        return state
+        #return state
+
+        self.wait_for_subscriptions()
+        return np.array([self.points])
 
     def get_reward(self):
         if self.crashed:

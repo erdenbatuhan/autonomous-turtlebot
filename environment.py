@@ -69,27 +69,47 @@ class Environment:
         rospy.Subscriber("/mobile_base/sensors/core", TurtlebotSensorState, self.core_sensor_callback)
 
     def get_state(self):
-        '''
-        image = np.zeros((80, 80))
+        state = {"greedy": (None, False),
+                 "safe": None}
 
         try:
             image = util.capture_image()
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            image = util.preprocess_image(image)
         except cv2.error as e:
             print(e)
-        '''
+            image = np.zeros((80, 80))
+
+        image_processed = util.process_image(image), False
+
+        if math.fabs(state["greedy"]) == image.shape[1] / 2:
+            state["greedy"] = np.array([image_processed]), True
+        else:
+            state["greedy"] = np.array([image_processed]), False
 
         depth = util.preprocess_image(self.depth_image_raw)
-        state = np.array([np.array([depth])])
+        state["depth"] = np.array([np.array([depth])])
 
         return state
 
-    def get_reward(self):
-        if self.crashed:
-            return -1
+    def get_reward(self, state):
+        reward = {"greedy": 0,
+                  "safe": 0}
 
-        return 0.1
+        if state["greedy"][1]:
+            reward["greedy"] = -1
+        elif -20 <= state["greedy"][0] <= 20:
+            if -5 <= state["greedy"][0] <= 5:
+                reward["greedy"] = 0.75
+            else:
+                reward["greedy"] = 0.25
+        else:
+            reward["greedy"] = 0
+
+        if self.crashed:
+            reward["safe"] = -1
+        else:
+            reward["safe"] = 0
+
+        return reward
 
     def act(self, action, v1=0.3, v2=0.05):
         vel_cmd = Twist()
@@ -123,7 +143,7 @@ class Environment:
         self.wait_for_subscriptions()
 
         state = self.get_state()
-        reward = self.get_reward()
+        reward = self.get_reward(state)
 
         print("State {} | Reward {} | Act {}".format(state, reward, (action - 2)))
         return state, reward, self.terminal, self.crashed

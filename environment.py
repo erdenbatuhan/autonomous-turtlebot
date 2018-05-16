@@ -62,7 +62,8 @@ class Environment:
         rospy.Subscriber("/camera/depth/image_raw", Image, self.depth_image_raw_callback)
 
     def core_sensor_callback(self, sensor_state):
-        print(sensor_state.bumps_wheeldrops)
+        bumper_state = sensor_state.bumps_wheeldrops
+        self.crashed = True if bumper_state is not 0 else False
 
     def subscribe_core_sensors(self):
         rospy.Subscriber("/mobile_base/sensors/core", TurtlebotSensorState, self.core_sensor_callback)

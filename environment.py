@@ -126,19 +126,18 @@ class Environment:
         '''
 
         #depth = util.preprocess_image(self.depth_image_raw)
-        state = np.array([np.array([self.depth_image_raw])])
+        state = self.depth_image_raw
 
-
-        w, h = state[0][0].shape
+        w, h = state.shape
         hw, qw = int(w / 2), int(w / 4)
 
         for i in range(0, w):
             for j in range(0, h):
-                if np.isnan(state[0][0][i][j]):
-                    state[0][0][i][j] = 0
+                if np.isnan(state[i][j]):
+                    state[i][j] = 0
 
-        half_states = np.array([np.average(state[0][0][0:qw]),
-                                np.average(state[0][0][qw:hw])])
+        half_states = np.array([np.average(state[0:qw]),
+                                np.average(state[qw:hw])])
 
         return half_states
 

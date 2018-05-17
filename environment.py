@@ -135,7 +135,7 @@ class Environment:
             print(e)
             image = np.zeros((80, 80))
 
-        state = util.process_image(image)
+        state_rgb = util.process_image(image)
 
         if math.fabs(state) == image.shape[1] / 2:
             terminal = True
@@ -156,7 +156,7 @@ class Environment:
                                 np.average(state[qw:hw])])
         obstacle = True if np.min(half_states) < 1450 else False
 
-        return np.array([state]), np.array([np.array([depth])]), terminal, obstacle
+        return np.array([state_rgb]), np.array([np.array([depth])]), terminal, obstacle
 
     def get_reward(self):
         return 0

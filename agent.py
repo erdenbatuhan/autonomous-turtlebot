@@ -3,8 +3,9 @@ import time
 import pickle as pkl
 
 from keras.models import Sequential
-from keras.layers.core import Dense, Activation, Flatten
+from keras.layers.core import Dense, Activation, Flatten, Dropout
 from keras.layers.convolutional import Conv2D
+from keras.layers.advanced_activations import LeakyReLU
 from keras.optimizers import Adam
 
 from random import random
@@ -22,13 +23,31 @@ class Agent:
         self.connector = connector
         self.server = server
 
-        self.model1 = self.build_model()
-        self.model2 = self.build_model()
+        self.greedy_model = self.build_greedy_model()
+        self.safe_model = self.build_safe_model()
+
+        self.safe_model2 = self.build_safe_model()
 
         self.memory = Memory(max_memory=5000)
 
     @staticmethod
-    def build_model():
+    def build_greedy_model():
+        model = Sequential()
+
+        model.add(Dense(24, input_shape=(1,)))
+        model.add(LeakyReLU(alpha=0.01))
+
+        for i in range(2 - 1):
+            model.add(Dense(24))
+            model.add(LeakyReLU(alpha=0.01))
+
+        model.add(Dense(4, activation="linear"))
+        model.compile(optimizer=Adam(lr=0.01), loss="mse")
+
+        return model
+
+    @staticmethod
+    def build_safe_model():
         model = Sequential()
 
         model.add(Conv2D(32, (8, 8), padding="same", input_shape=(1, 80, 80), strides=(4, 4)))
@@ -49,18 +68,23 @@ class Agent:
         return model
 
     def load_model(self):
-        path = "./data/model.h5"
+        greedy_path = "./data/greedy_model.h5"
+        safe_path = "./data/safe_model.h5"
 
         try:
-            self.model1.load_weights(filepath=path)
+            self.greedy_model.load_weights(filepath=greedy_path)
+            self.safe_model.load_weights(filepath=safe_path)
+
             self.EXPLORATION_RATE = 1  # No exploration!
         except OSError:
             print("No pre-saved model found.")
 
     def save_model(self):
-        path = "./data/model.h5"
+        greedy_path = "./data/greedy_model.h5"
+        safe_path = "./data/model.h5"
 
-        self.model1.save_weights(filepath=path, overwrite=True)
+        self.greedy_model.save_weights(filepath=greedy_path, overwrite=True)
+        self.safe_model.save_weights(filepath=safe_path, overwrite=True)
         print("Model saved.")
 
     def get_random_action(self):
@@ -69,19 +93,27 @@ class Agent:
 
         return None
 
-    def get_next_action(self, half_states):
+    def get_next_action(self, state):
+        if state["safe"][1]:
+            actions = self.safe_model.predict(state["safe"][0])[0]
+            return np.argmax(actions) - 2
+        else:
+            actions = self.greedy_model.predict(state["greedy"][0])[0]
+            return np.argmax(actions)
+        '''
         if np.min(half_states) < 1200:
             print("OBSTACLE!   " + str(half_states))
         else:
             print(half_states)
 
         return np.argmax(half_states)
+        '''
 
     def experience_replay(self, batch_size=32):
         model_id = 1 if random() < 0.5 else 2  # Dice rolled
 
-        main_model = self.model1 if model_id == 1 else self.model2
-        side_model = self.model2 if model_id == 1 else self.model1
+        main_model = self.safe_model if model_id == 1 else self.safe_model2
+        side_model = self.safe_model2 if model_id == 1 else self.safe_model
 
         len_memory = len(self.memory)
 
@@ -111,28 +143,38 @@ class Agent:
         steps = []
         self.load_model()
 
-        half_states = self.server.receive_data()
+        state = self.server.receive_data()
         lifetime, step, loss, crashed = 0., 0, 0., False
 
         while True:
             lifetime += 1
             step += 1
 
-            action = self.get_next_action(half_states)
+            action = self.get_next_action(state)
             self.connector.send_data(int(action))
 
-            next_half_states, reward, _, crashed = self.server.receive_data()
+            next_state, _, _, crashed = self.server.receive_data()
 
             #self.memory.remember_experience((state, action, reward, next_state, crashed))
             #loss += self.experience_replay()
 
             self.report(step, action, False, crashed)
-            half_states = next_half_states
+
+            state_prev = state
+            state = next_state
+
+            while state["greedy"][1]:
+                if state_prev >= 0:
+                    self.connector.send_data(0)
+                else:
+                    self.connector.send_data(3)
+
+                state, _, _, _ = self.server.receive_data()
 
             if crashed:
-                self.connector.send_data(2)
+                self.connector.send_data(4)
                 time.sleep(5)
-                half_states, _, _, crashed = self.server.receive_data()
+                state, _, _, crashed = self.server.receive_data()
 
                 steps.append(step)
                 step = 0.

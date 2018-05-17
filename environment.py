@@ -125,6 +125,25 @@ class Environment:
             print(e)
         '''
 
+        observation = {"greedy": (None, False), "safe": (None, False)}
+
+        # BALL
+        terminal = False
+
+        try:
+            image = util.capture_image()
+        except cv2.error as e:
+            print(e)
+            image = np.zeros((80, 80))
+
+        state = util.process_image(image)
+
+        if math.fabs(state) == image.shape[1] / 2:
+            terminal = True
+
+        observation["greedy"] = np.array([state]), terminal
+
+        # DEPTH
         depth = util.preprocess_image(self.depth_image_raw)
         state = depth
 
@@ -138,27 +157,35 @@ class Environment:
 
         half_states = np.array([np.average(state[0:qw]),
                                 np.average(state[qw:hw])])
+        obstacle = True if np.min(half_states) < 1500 else False
+        print(half_states)
+        exit(0)
 
-        return half_states
+        observation["safe"] = depth, obstacle
 
-        #return np.array([np.array([self.points])])
+        return observation
 
     def get_reward(self):
-        if self.crashed:
-            return -50
-
-        return 1
+        return 0
 
     def act(self, action, v1=0.3, v2=0.05):
         vel_cmd = Twist()
 
-        if action == 0:     # Left
+        if action == -2:     # Left
             vel_cmd.linear.x = 0
             vel_cmd.angular.z = 4. * v1
-        if action == 1:     # Right
+        elif action == -1:     # Right
             vel_cmd.linear.x = 0
             vel_cmd.angular.z = -4. * v1
-        elif action == 2:   # Back
+        elif action == 0:
+            vel_cmd.angular.z = v1
+        elif action == 1:
+            vel_cmd.angular.z = v1 / 2
+        elif action == 2:
+            vel_cmd.angular.z = -v1 / 2
+        elif action == 3:
+            vel_cmd.angular.z = -v1
+        elif action == 4:  # Back
             vel_cmd.linear.x = -10. * (v1 - v2)
             vel_cmd.angular.z = -10. * v1
 

@@ -93,8 +93,8 @@ class Agent:
 
                 state, _, terminal = self.server.receive_data()
 
-            self.connector.send_data(4)
-            _, _, _ = self.server.receive_data()
+            #self.connector.send_data(4)
+            #_, _, _ = self.server.receive_data()
 
     @staticmethod
     def report(step, loss, state, action, is_random):

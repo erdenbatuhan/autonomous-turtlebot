@@ -53,6 +53,7 @@ class Agent:
 
         try:
             self.model1.load_weights(filepath=path)
+            self.model2.load_weights(filepath=path)
             self.EXPLORATION_RATE = 1  # No exploration!
         except OSError:
             print("No pre-saved model found.")

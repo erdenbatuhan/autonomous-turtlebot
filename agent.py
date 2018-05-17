@@ -69,19 +69,13 @@ class Agent:
 
         return None
 
-    def get_next_action(self, state):
-        w, h = state[0][0].shape
-        hw, qw = int(w / 2), int(w / 4)
+    def get_next_action(self, half_states):
+        if np.min(half_states) < 1200:
+            print("OBSTACLE!   " + str(half_states))
+        else:
+            print(half_states)
 
-        for i in range(0, w):
-            for j in range(0, h):
-                if np.isnan(state[0][0][i][j]):
-                    state[0][0][i][j] = 0
-
-        half_states = np.array([np.average(state[0][0][0:qw]),
-                                np.average(state[0][0][qw:hw])])
-        print(half_states)
-        return np.argmin(half_states)
+        return np.argmax(half_states)
 
     def experience_replay(self, batch_size=32):
         model_id = 1 if random() < 0.5 else 2  # Dice rolled
@@ -117,28 +111,28 @@ class Agent:
         steps = []
         self.load_model()
 
-        state = self.server.receive_data()
+        half_states = self.server.receive_data()
         lifetime, step, loss, crashed = 0., 0, 0., False
 
         while True:
             lifetime += 1
             step += 1
 
-            action = self.get_next_action(state)
+            action = self.get_next_action(half_states)
             self.connector.send_data(int(action))
 
-            next_state, reward, _, crashed = self.server.receive_data()
+            next_half_states, reward, _, crashed = self.server.receive_data()
 
             #self.memory.remember_experience((state, action, reward, next_state, crashed))
             #loss += self.experience_replay()
 
             self.report(step, action, False, crashed)
-            state = next_state
+            half_states = next_half_states
 
             if crashed:
                 self.connector.send_data(2)
-                time.sleep(1)
-                state, _, _, crashed = self.server.receive_data()
+                time.sleep(5)
+                half_states, _, _, crashed = self.server.receive_data()
 
                 steps.append(step)
                 step = 0.

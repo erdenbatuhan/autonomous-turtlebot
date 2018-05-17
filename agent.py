@@ -166,14 +166,14 @@ class Agent:
             observation = next_observation
 
             print(observation)
-
+            
             while observation[2]:
                 if observation_prev[0] >= 0:
                     self.connector.send_data(0)
                 else:
                     self.connector.send_data(3)
 
-                    observation, _, _, _ = self.server.receive_data()
+                observation, _, _, _ = self.server.receive_data()
 
             if crashed:
                 self.connector.send_data(4)

@@ -137,7 +137,7 @@ class Environment:
 
         state_rgb = util.process_image(image)
 
-        if math.fabs(state) == image.shape[1] / 2:
+        if math.fabs(state_rgb) == image.shape[1] / 2:
             terminal = True
 
         # DEPTH

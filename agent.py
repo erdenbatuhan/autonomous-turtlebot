@@ -166,7 +166,7 @@ class Agent:
             observation = next_observation
 
             print(observation)
-            
+
             while observation[2]:
                 if observation_prev[0] >= 0:
                     self.connector.send_data(0)
@@ -192,5 +192,5 @@ class Agent:
 
     def report(self, step, action, is_random, crashed):
         print("Epsilon {} | Step {} | Act {} | Random Act {} | Crashed {}".
-              format(self.EPSILON, step, (action - 3), is_random, crashed))
+              format(self.EPSILON, step, action, is_random, crashed))
 

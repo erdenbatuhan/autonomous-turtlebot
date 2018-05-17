@@ -158,7 +158,7 @@ class Environment:
 
         half_states = np.array([np.average(state[0:qw]),
                                 np.average(state[qw:hw])])
-        obstacle = True if np.min(half_states) < 1500 else False
+        obstacle = True if np.min(half_states) < 1450 else False
         print(half_states)
         exit(0)
 

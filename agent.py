@@ -81,7 +81,7 @@ class Agent:
         half_states = np.array([np.average(state[0][0][0:qw]),
                                 np.average(state[0][0][qw:hw])])
         print(half_states)
-        return np.argmax(half_states)
+        return np.argmin(half_states)
 
     def experience_replay(self, batch_size=32):
         model_id = 1 if random() < 0.5 else 2  # Dice rolled

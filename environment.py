@@ -98,8 +98,8 @@ class Environment:
             vel_cmd.angular.z = -v1 / 2
         elif action == 3:
             vel_cmd.angular.z = -v1
-
-        vel_cmd.linear.x = (v1 - v2)  # Forward
+        else:
+            vel_cmd.linear.x = (v1 - v2)  # Forward
 
         if rospy.is_shutdown():
             return

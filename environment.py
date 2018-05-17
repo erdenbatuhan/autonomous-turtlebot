@@ -125,13 +125,13 @@ class Environment:
             print(e)
         '''
 
-        #depth = util.preprocess_image(self.depth_image_raw)
-        state = self.depth_image_raw
+        depth = util.preprocess_image(self.depth_image_raw)
+        state = depth
 
         w, h = state.shape
         hw, qw = int(w / 2), int(w / 4)
 
-        for i in range(0, w):
+        for i in range(0, hw):
             for j in range(0, h):
                 if np.isnan(state[i][j]):
                     state[i][j] = 0

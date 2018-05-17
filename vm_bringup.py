@@ -15,8 +15,8 @@ def main():
     connector.send_data(state)
     action = server.receive_data()
 
-    while action != -2:
-        if action == -1:
+    while action != -4:
+        if action == -3:
             env.reset_base()
 
             state = env.get_state()  # Initial state

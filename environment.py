@@ -72,7 +72,6 @@ class Environment:
             self.depth_image_raw = self.bridge.imgmsg_to_cv2(depth_image_raw, "passthrough")
             self.depth_image_raw = np.array(self.depth_image_raw, dtype=np.float32)
 
-            cv2.normalize(self.depth_image_raw, self.depth_image_raw, 0, 1, cv2.NORM_MINMAX)
             self.subscriptions_ready[0] = 1
         except CvBridgeError as e:
             print(e)
@@ -126,8 +125,8 @@ class Environment:
             print(e)
         '''
 
-        depth = util.preprocess_image(self.depth_image_raw)
-        state = np.array([np.array([depth])])
+        #depth = util.preprocess_image(self.depth_image_raw)
+        state = np.array([np.array([self.depth_image_raw])])
 
         return state
 
@@ -153,7 +152,7 @@ class Environment:
             vel_cmd.angular.z = -10. * v1
 
         if action < 2:      # Forward
-            vel_cmd.linear.x = (v1 - v2)
+            vel_cmd.linear.x = (v1 - v2) * .5
 
         if rospy.is_shutdown():
             return

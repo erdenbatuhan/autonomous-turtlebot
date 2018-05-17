@@ -70,15 +70,18 @@ class Agent:
         return None
 
     def get_next_action(self, state):
-        random_action = self.get_random_action()
-        actions = np.add(self.model1.predict(state)[0], self.model2.predict(state)[0])
+        w, h = state[0][0].shape
+        hw, qw = int(w / 2), int(w / 4)
 
-        print(actions)
+        for i in range(0, w):
+            for j in range(0, h):
+                if np.isnan(state[0][0][i][j]):
+                    state[0][0][i][j] = 0
 
-        if random_action is not None:
-            return random_action, True
-
-        return np.argmax(actions), False
+        half_states = np.array([np.average(state[0][0][0:qw]),
+                                np.average(state[0][0][qw:hw])])
+        print(half_states)
+        return np.argmax(half_states)
 
     def experience_replay(self, batch_size=32):
         model_id = 1 if random() < 0.5 else 2  # Dice rolled
@@ -121,15 +124,15 @@ class Agent:
             lifetime += 1
             step += 1
 
-            action, is_random = self.get_next_action(state)
+            action = self.get_next_action(state)
             self.connector.send_data(int(action))
 
             next_state, reward, _, crashed = self.server.receive_data()
 
-            self.memory.remember_experience((state, action, reward, next_state, crashed))
-            loss += self.experience_replay()
+            #self.memory.remember_experience((state, action, reward, next_state, crashed))
+            #loss += self.experience_replay()
 
-            self.report(step, action, is_random, crashed)
+            self.report(step, action, False, crashed)
             state = next_state
 
             if crashed:

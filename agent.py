@@ -151,6 +151,8 @@ class Agent:
             step += 1
 
             action = self.get_next_action(observation)
+
+            print(observation)
             self.connector.send_data(int(action))
 
             next_observation, _, _, crashed = self.server.receive_data()

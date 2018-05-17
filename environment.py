@@ -135,43 +135,25 @@ class Environment:
 
     def get_reward(self):
         if self.crashed:
-            return -1
+            return -50
 
-        return 0.1
+        return 1
 
     def act(self, action, v1=0.3, v2=0.05):
         vel_cmd = Twist()
 
-        if action == 0:  # WAAAY MORE LEFT
-            vel_cmd.linear.x = 0    # <--------------
+        if action == 0:     # Left
+            vel_cmd.linear.x = 0
             vel_cmd.angular.z = 4. * v1
-        if action == 1:             # <----------
-            vel_cmd.linear.x = 0
-            vel_cmd.angular.z = 3. * v1
-        elif action == 2:           # <------
-            vel_cmd.linear.x = 0
-            vel_cmd.angular.z = 2. * v1
-        elif action == 3:           # <--
-            vel_cmd.linear.x = 0
-            vel_cmd.angular.z = v1
-        elif action == 4:           # -->
-            vel_cmd.linear.x = 0
-            vel_cmd.angular.z = -v1
-        elif action == 5:           # ------>
-            vel_cmd.linear.x = 0
-            vel_cmd.angular.z = -2. * v1
-        elif action == 6:           # ---------->
-            vel_cmd.linear.x = 0
-            vel_cmd.angular.z = -3. * v1
-        if action == 7:             # -------------->
+        if action == 1:     # Right
             vel_cmd.linear.x = 0
             vel_cmd.angular.z = -4. * v1
-        elif action == 8:           # BACK
+        elif action == 2:   # Back
             vel_cmd.linear.x = -30. * (v1 - v2)
-            vel_cmd.angular.z = -5. * v1
+            vel_cmd.angular.z = -10. * v1
 
-        if action < 8:              # FORWARD
-            vel_cmd.linear.x = (v1 - v2)
+        if action < 2:      # Forward
+            vel_cmd.linear.x = (v1 - v2) / 2
 
         if rospy.is_shutdown():
             return

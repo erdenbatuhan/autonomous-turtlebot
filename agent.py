@@ -163,6 +163,8 @@ class Agent:
             observation_prev = observation
             observation = next_observation
 
+            print(observation)
+
             while observation[2]:
                 if observation_prev[0] >= 0:
                     self.connector.send_data(0)
@@ -174,7 +176,7 @@ class Agent:
             if crashed:
                 self.connector.send_data(4)
                 time.sleep(5)
-                state, _, _, crashed = self.server.receive_data()
+                observation, _, _, crashed = self.server.receive_data()
 
                 steps.append(step)
                 step = 0.

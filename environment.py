@@ -126,7 +126,7 @@ class Environment:
             print(e)
         '''
 
-        observation = {"greedy": (None, False), "safe": (None, False)}
+        observation = {"greedy": [None, False], "safe": [None, False]}
 
         # BALL
         terminal = False
@@ -161,7 +161,7 @@ class Environment:
         obstacle = True if np.min(half_states) < 1450 else False
 
         observation["safe"] = depth, obstacle
-        
+
         return observation
 
     def get_reward(self):

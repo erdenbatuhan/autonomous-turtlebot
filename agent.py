@@ -167,7 +167,13 @@ class Agent:
 
             print(observation)
 
+            counter = 0
             while observation[2]:
+                if counter > 5:
+                    break
+                    
+                counter = counter + 1
+
                 if observation_prev[0] >= 0:
                     self.connector.send_data(0)
                 else:

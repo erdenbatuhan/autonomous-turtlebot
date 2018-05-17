@@ -93,12 +93,12 @@ class Agent:
 
         return None
 
-    def get_next_action(self, state):
-        if state["obstacle"]:
-            actions = self.safe_model.predict(state["safe"])[0]
+    def get_next_action(self, observation):
+        if observation[3]:
+            actions = self.safe_model.predict(observation[1])[0]
             return np.argmax(actions) - 2
         else:
-            actions = self.greedy_model.predict(state["greedy"])[0]
+            actions = self.greedy_model.predict(observation[0])[0]
             return np.argmax(actions)
         '''
         if np.min(half_states) < 1200:
@@ -143,33 +143,33 @@ class Agent:
         steps = []
         self.load_model()
 
-        state = self.server.receive_data()
+        observation = self.server.receive_data()
         lifetime, step, loss, crashed = 0., 0, 0., False
 
         while True:
             lifetime += 1
             step += 1
 
-            action = self.get_next_action(state)
+            action = self.get_next_action(observation)
             self.connector.send_data(int(action))
 
-            next_state, _, _, crashed = self.server.receive_data()
+            next_observation, _, _, crashed = self.server.receive_data()
 
             #self.memory.remember_experience((state, action, reward, next_state, crashed))
             #loss += self.experience_replay()
 
             self.report(step, action, False, crashed)
 
-            state_prev = state
-            state = next_state
+            observation_prev = observation
+            observation = next_observation
 
-            while state["terminal"]:
-                if state_prev >= 0:
+            while observation[2]:
+                if observation_prev[0] >= 0:
                     self.connector.send_data(0)
                 else:
                     self.connector.send_data(3)
 
-                state, _, _, _ = self.server.receive_data()
+                    observation, _, _, _ = self.server.receive_data()
 
             if crashed:
                 self.connector.send_data(4)

@@ -15,7 +15,7 @@ class Agent:
 
     EPSILON = 1
     EXPLORATION_RATE = 0.001
-    EPSILON_LOWEST = 0.1
+    EPSILON_LOWEST = 0.2
     GAMMA = 0.99
 
     def __init__(self, connector, server):

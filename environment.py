@@ -35,8 +35,8 @@ class Environment:
         self.crashed = False
 
         self.subscriptions_ready = np.zeros(self.NUM_OF_SUBSCRIPTIONS)
-        self.subscribe_rgb_image_raw()
-        #self.subscribe_depth_image_raw()
+        #self.subscribe_rgb_image_raw()
+        self.subscribe_depth_image_raw()
         self.subscribe_core_sensors()
         #self.subscribe_point_cloud()
 
@@ -104,6 +104,7 @@ class Environment:
         rospy.Subscriber("/camera/depth/points", PointCloud2, self.point_cloud_callback)
 
     def get_state(self):
+        '''
         image = np.zeros((80, 80))
 
         try:
@@ -115,7 +116,7 @@ class Environment:
         return np.array([np.array([image])])
 
 
-        '''
+
         image = np.zeros((80, 80))
 
         try:
@@ -126,10 +127,10 @@ class Environment:
             print(e)
         '''
 
-        #depth = util.preprocess_image(self.depth_image_raw)
-        #state = np.array([np.array([depth])])
+        depth = util.preprocess_image(self.depth_image_raw)
+        state = np.array([np.array([depth])])
 
-        #return state
+        return state
 
         #return np.array([np.array([self.points])])
 

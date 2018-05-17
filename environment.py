@@ -182,7 +182,7 @@ class Environment:
             vel_cmd.linear.x = -10. * (v1 - v2)
             vel_cmd.angular.z = -10. * v1
 
-        if action < 2:      # Forward
+        if action < 4:      # Forward
             vel_cmd.linear.x = (v1 - v2) * .5
 
         if rospy.is_shutdown():

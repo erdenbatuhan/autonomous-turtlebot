@@ -22,7 +22,9 @@ class Agent:
         self.connector = connector
         self.server = server
 
-        self.model = self.build_model()
+        self.model1 = self.build_model()
+        self.model2 = self.build_model()
+
         self.memory = Memory(max_memory=5000)
 
     @staticmethod
@@ -50,7 +52,7 @@ class Agent:
         path = "./data/model.h5"
 
         try:
-            self.model.load_weights(filepath=path)
+            self.model1.load_weights(filepath=path)
             self.EXPLORATION_RATE = 1  # No exploration!
         except OSError:
             print("No pre-saved model found.")
@@ -58,7 +60,7 @@ class Agent:
     def save_model(self):
         path = "./data/model.h5"
 
-        self.model.save_weights(filepath=path, overwrite=True)
+        self.model1.save_weights(filepath=path, overwrite=True)
         print("Model saved.")
 
     def get_random_action(self):
@@ -69,7 +71,7 @@ class Agent:
 
     def get_next_action(self, state):
         random_action = self.get_random_action()
-        actions = self.model.predict(state)[0]
+        actions = np.add(self.model1.predict(state)[0], self.model2.predict(state)[0])
 
         print(actions)
 
@@ -79,6 +81,11 @@ class Agent:
         return np.argmax(actions), False
 
     def experience_replay(self, batch_size=32):
+        model_id = 1 if random() < 0.5 else 2  # Dice rolled
+
+        main_model = self.model1 if model_id == 1 else self.model2
+        side_model = self.model2 if model_id == 1 else self.model1
+
         len_memory = len(self.memory)
 
         inputs = np.zeros((min(len_memory, batch_size), 1, 80, 80))
@@ -88,16 +95,20 @@ class Agent:
             state, action, reward, next_state, done = self.memory.get_experience(ind)
 
             inputs[i:i+1] = state
-            targets[i] = self.model.predict(state)[0]
+            targets[i] = main_model.predict(state)[0]
 
             if done:
                 targets[i, action] = reward
             else:
-                targets[i, action] = reward + self.GAMMA * np.max(self.model.predict(next_state)[0])
+                # Double Q-Learning Algorithm
+                Q1 = main_model.predict(next_state)[0]
+                Q2 = side_model.predict(next_state)[0]
+
+                targets[i, action] = reward + self.GAMMA * Q2[np.argmax(Q1)]
 
         self.EPSILON = (self.EPSILON - self.EXPLORATION_RATE) \
             if self.EPSILON > self.EPSILON_LOWEST else self.EPSILON_LOWEST
-        return self.model.train_on_batch(inputs, targets)
+        return main_model.train_on_batch(inputs, targets)
 
     def train(self):
         steps = []

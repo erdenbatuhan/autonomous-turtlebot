@@ -126,7 +126,7 @@ class Environment:
             print(e)
         '''
 
-        observation = {"greedy": [None, False], "safe": [None, False]}
+        observation = {"greedy": None, "safe": None, "terminal": False, "obstacle": False}
 
         # BALL
         terminal = False
@@ -142,7 +142,8 @@ class Environment:
         if math.fabs(state) == image.shape[1] / 2:
             terminal = True
 
-        observation["greedy"] = [np.array([state]), terminal]
+        observation["greedy"] = np.array([state])
+        observation["terminal"] = terminal
 
         # DEPTH
         depth = util.preprocess_image(self.depth_image_raw)
@@ -160,7 +161,8 @@ class Environment:
                                 np.average(state[qw:hw])])
         obstacle = True if np.min(half_states) < 1450 else False
 
-        observation["safe"] = [depth, obstacle]
+        observation["safe"] = np.array([np.array([depth])])
+        observation["obstacle"] = obstacle
 
         return observation
 

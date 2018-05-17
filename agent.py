@@ -94,11 +94,11 @@ class Agent:
         return None
 
     def get_next_action(self, state):
-        if state["safe"][1]:
-            actions = self.safe_model.predict(state["safe"][0])[0]
+        if state["obstacle"]:
+            actions = self.safe_model.predict(state["safe"])[0]
             return np.argmax(actions) - 2
         else:
-            actions = self.greedy_model.predict(state["greedy"][0])[0]
+            actions = self.greedy_model.predict(state["greedy"])[0]
             return np.argmax(actions)
         '''
         if np.min(half_states) < 1200:
@@ -163,7 +163,7 @@ class Agent:
             state_prev = state
             state = next_state
 
-            while state["greedy"][1]:
+            while state["terminal"]:
                 if state_prev >= 0:
                     self.connector.send_data(0)
                 else:
